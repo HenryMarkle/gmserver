@@ -1,0 +1,6 @@
+.env
+*.env
+static/
+static/*
+.vscode/
+.cache/

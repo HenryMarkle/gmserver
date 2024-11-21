@@ -1,0 +1,140 @@
+package db
+
+type User struct {
+	StartDate  string
+	Email      string
+	Name       string
+	Password   string
+	Session    string
+	LastLogin  string
+	DeletedAt  string
+	GymName    string
+	Gender     string
+	Permission int
+	Salary     int
+	Age        int
+	ID         int
+}
+
+type Subscriber struct {
+	StartedAt     string
+	Name          string
+	Surname       string
+	DeletedAt     string
+	UpdatedAt     string
+	CreatedAt     string
+	EndsAt        string
+	Gender        string
+	Age           int
+	PaymentAmount float64
+	BucketPrice   float64
+	DaysLeft      int
+	Duration      int
+	ID            int
+}
+
+type SubscriberComment struct {
+	Sender       *User
+	Subscriber   *Subscriber
+	Text         string
+	CreatedAt    string
+	UpdatedAt    string
+	DeletedAt    string
+	ID           int
+	SenderID     int
+	SubscriberID int
+}
+
+type Message struct {
+	Text string
+	Sent string
+	ID   int
+}
+
+type MessageRead struct {
+	User      *User
+	Message   *Message
+	ID        int
+	UserID    int
+	MessageID int
+	Read      bool
+}
+
+type ProductCategory struct {
+	Name     string
+	Products []Product
+	ID       int
+}
+
+type Product struct {
+	Category    *ProductCategory
+	Name        string
+	Description string
+	Marka       string
+	CreatedAt   string
+	UpdatedAt   string
+	DeletedAt   string
+	ID          int
+	Price       float64
+	CategoryID  int
+}
+
+type ExcerciseCategory struct {
+	Name       string
+	Excercises []Excercise
+	ID         int
+}
+
+type Excercise struct {
+	Category    *ExcerciseCategory
+	Name        string
+	Description string
+	ID          int
+	CategoryID  int
+}
+
+type Trainer struct {
+	Job         string
+	Name        string
+	Description string
+	Instigram   string
+	Facebook    string
+	Twitter     string
+	ID          int
+}
+
+type Plan struct {
+	Title       string
+	Description string
+	Duration    string
+	CreatedAt   string
+	UpdatedAt   string
+	DeletedAt   string
+	ID          int
+	Price       float64
+}
+
+type PlanFeature struct {
+	Plan   *Plan
+	Name   string
+	ID     int
+	PlanID int
+}
+
+type Event struct {
+	Actor    *User
+	Event    string
+	Target   string
+	Date     string
+	ID       int
+	ActorID  int
+	TargetID int
+}
+
+type SeenEvent struct {
+	Event   *Event
+	User    *User
+	ID      int
+	EventID int
+	UserID  int
+}
