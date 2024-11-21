@@ -396,18 +396,38 @@ func DeletePlanByID(db DB, id int) DBErr {
 }
 
 func ReplacePlan(db DB, plan Plan) DBErr {
-	query := `
-  BEGIN TRANSACTION;
+	tx, txErr := db.Begin()
 
-  DELETE FROM Plan WHERE id = ?;
-  INSERT INTO Plan (title, description, price, duration) VALUES (?, ?, ?, ?);
+	if tx != nil {
+		common.Logger.Printf("Could not begin a new transaction to replace a plan: %v\n", txErr)
+		return ERR_UNKNOWN
+	}
 
-  COMMIT;`
+	deleteQuery := `DELETE FROM Plan WHERE id = ?`
 
-	_, execErr := db.Exec(query, plan.ID, plan.Title, plan.Description, plan.Price, plan.Duration)
+	_, deleteErr := tx.Exec(deleteQuery, plan.ID)
 
-	if execErr != nil {
-		common.Logger.Printf("Failed to replace a plan: %v\n", execErr)
+	if deleteErr != nil {
+		tx.Rollback()
+		common.Logger.Printf("Failed to delete a plan by ID in a transaction: %v\n", deleteErr)
+		return ERR_UNKNOWN
+	}
+
+	insertQuery := `INSERT INTO Plan (title, description, price, duration) VALUES (?, ?, ?, ?);`
+
+	_, insertErr := tx.Exec(insertQuery, plan.Title, plan.Description, plan.Price, plan.Duration)
+
+	if insertErr != nil {
+		tx.Rollback()
+		common.Logger.Printf("Failed to create a plan in a transaction: %v\n", insertErr)
+		return ERR_UNKNOWN
+	}
+
+	commitErr := tx.Commit()
+
+	if commitErr != nil {
+		tx.Rollback()
+		common.Logger.Printf("Could not commit plan replacement: %v\n", commitErr)
 		return ERR_UNKNOWN
 	}
 
