@@ -42,12 +42,11 @@ func Construct(db DB) error {
 
 func AddAccount(
 	db DB,
-	name, email, password string,
-	age, salary, gender int,
+	account User,
 ) DBErr {
 	dupCheckQuery := `SELECT id FROM User WHERE email = ?;`
 
-	res := db.QueryRow(dupCheckQuery, email)
+	res := db.QueryRow(dupCheckQuery, account.Email)
 
 	var dupId int
 	scanErr := res.Scan(&dupId)
@@ -59,7 +58,7 @@ func AddAccount(
 
 	createQuery := `INSERT INTO Users (name, email, password, permission, age, gender, salary) VALUES (?, ?, ?, 0, ?, ?)`
 
-	_, execErr := db.Exec(createQuery, name, email, password, age, gender, salary)
+	_, execErr := db.Exec(createQuery, account.Name, account.Email, account.Password, account.Age, account.Gender, account.Salary)
 
 	if execErr != nil {
 		common.Logger.Printf("Failed to create account: %v\n", execErr)
@@ -203,43 +202,29 @@ func GetAllSubscribers(db DB, limit int) ([]Subscriber, DBErr) {
 	return subs, ERR_NONE
 }
 
-func GetSubscriberByID(db DB, id int, includeDeleted bool) (*Subscriber, DBErr) {
-	query := `SELECT id, name, surname, age, gender, duration, daysLeft, bucketPrice, paymentAmount, startedAt, endsAt, createdAt, updatedAt, deletedAt FROM Subscriber WHERE id = ?`
+func GetSubscriberByID(db DB, id int) (*Subscriber, DBErr) {
+	query := `SELECT id, name, surname, age, gender, duration, daysLeft, bucketPrice, paymentAmount, startedAt, endsAt, createdAt, updatedAt, deletedAt FROM Subscriber WHERE id = ? WHERE deletedAt IS NULL`
 
-	if !includeDeleted {
-		query = fmt.Sprintf("%s AND deletedAt IS NULL", query)
-	}
-
-	var (
-		_id, age, duration, daysLeft int
-		name, surname, gender,
-		startedAt, endsAt, createdAt, updatedAt, deletedAt string
-
-		bucketPrice, paymentAmount float64
-	)
-
-	scanErr := db.QueryRow(query, id).Scan(&_id, &name, &surname, &age, &gender, &duration, &daysLeft, &bucketPrice, &paymentAmount, &startedAt, &endsAt, &createdAt, &updatedAt, &deletedAt)
+	sub := &Subscriber{}
+	scanErr := db.QueryRow(query, id).Scan(&sub.ID, &sub.Name, &sub.Surname, &sub.Age, &sub.Gender, &sub.Duration, &sub.DaysLeft, &sub.BucketPrice, &sub.PaymentAmount, &sub.StartedAt, &sub.EndsAt, &sub.CreatedAt, &sub.UpdatedAt, &sub.DeletedAt)
 
 	if scanErr != nil {
 		common.Logger.Printf("Failed to get subscriber ID: %v\n", scanErr)
 		return nil, ERR_UNKNOWN
 	}
 
-	sub := &Subscriber{
-		ID:            id,
-		Name:          name,
-		Surname:       surname,
-		Age:           age,
-		Gender:        gender,
-		Duration:      duration,
-		DaysLeft:      daysLeft,
-		BucketPrice:   bucketPrice,
-		PaymentAmount: paymentAmount,
-		StartedAt:     startedAt,
-		EndsAt:        endsAt,
-		CreatedAt:     createdAt,
-		UpdatedAt:     updatedAt,
-		DeletedAt:     deletedAt,
+	return sub, ERR_NONE
+}
+
+func GetSubscriberByIDWithDeleted(db DB, id int) (*Subscriber, DBErr) {
+	query := `SELECT id, name, surname, age, gender, duration, daysLeft, bucketPrice, paymentAmount, startedAt, endsAt, createdAt, updatedAt, deletedAt FROM Subscriber WHERE id = ?`
+
+	sub := &Subscriber{}
+	scanErr := db.QueryRow(query, id).Scan(&sub.ID, &sub.Name, &sub.Surname, &sub.Age, &sub.Gender, &sub.Duration, &sub.DaysLeft, &sub.BucketPrice, &sub.PaymentAmount, &sub.StartedAt, &sub.EndsAt, &sub.CreatedAt, &sub.UpdatedAt, &sub.DeletedAt)
+
+	if scanErr != nil {
+		common.Logger.Printf("Failed to get subscriber ID: %v\n", scanErr)
+		return nil, ERR_UNKNOWN
 	}
 
 	return sub, ERR_NONE
@@ -299,6 +284,130 @@ func UpdateSubscriber(db DB, data Subscriber) DBErr {
 
 	if execErr != nil {
 		common.Logger.Printf("Failed to update a subscriber: %v\n", execErr)
+		return ERR_UNKNOWN
+	}
+
+	return ERR_NONE
+}
+
+func GetPlans(db DB) ([]Plan, DBErr) {
+	query := `SELECT id, title, description, price, duration, createdAt, updatedAt, deletedAt FROM Plan WHERE deletedAt IS NULL`
+
+	rows, execErr := db.Query(query)
+	if execErr != nil {
+		common.Logger.Printf("Failed to get all plans: %v\n", execErr)
+		return nil, ERR_UNKNOWN
+	}
+
+	plans := []Plan{}
+
+	counter := 0
+	for rows.Next() {
+		plan := Plan{}
+
+		scanErr := rows.Scan(&plan.ID, &plan.Title, &plan.Description, &plan.Duration, &plan.CreatedAt, &plan.UpdatedAt, &plan.DeletedAt)
+
+		if scanErr != nil {
+			common.Logger.Printf("Failed to scal plans rows at row (%d): %v\n", counter, scanErr)
+			return nil, ERR_UNKNOWN
+		}
+
+		plans = append(plans, plan)
+	}
+
+	return plans, ERR_NONE
+}
+
+func GetPlansWithDeleted(db DB) ([]Plan, DBErr) {
+	query := `SELECT id, title, description, price, duration, createdAt, updatedAt, deletedAt FROM Plan`
+
+	rows, execErr := db.Query(query)
+	if execErr != nil {
+		common.Logger.Printf("Failed to get all plans: %v\n", execErr)
+		return nil, ERR_UNKNOWN
+	}
+
+	plans := []Plan{}
+
+	counter := 0
+	for rows.Next() {
+		plan := Plan{}
+
+		scanErr := rows.Scan(&plan.ID, &plan.Title, &plan.Description, &plan.Duration, &plan.CreatedAt, &plan.UpdatedAt, &plan.DeletedAt)
+
+		if scanErr != nil {
+			common.Logger.Printf("Failed to scal plans rows at row (%d): %v\n", counter, scanErr)
+			return nil, ERR_UNKNOWN
+		}
+
+		plans = append(plans, plan)
+	}
+
+	return plans, ERR_NONE
+}
+
+func GetPlanByID(db DB, id int) (*Plan, DBErr) {
+	query := `SELECT title, description, price, duration, createdAt, updatedAt, deletedAt FROM Plan WHERE id = ?`
+
+	plan := &Plan{}
+
+	scanErr := db.QueryRow(query, id).Scan(&plan.Title, &plan.Description, &plan.Price, &plan.Duration, &plan.CreatedAt, &plan.UpdatedAt, &plan.DeletedAt)
+
+	if scanErr != nil {
+		common.Logger.Printf("Failed to get a plan by ID: %v\n", scanErr)
+		return nil, ERR_UNKNOWN
+	}
+
+	return plan, ERR_NONE
+}
+
+func CreatePlan(db DB, plan Plan) (int, DBErr) {
+	query := `
+  BEGIN TRANSACTION;
+
+  INSERT INTO Plan (title, description, price, duration) VALUES (?, ?, ?, ?);
+
+  SELECT LAST_INSERT_ROWID();
+
+  COMMIT;
+  `
+
+	var id int
+	scanErr := db.QueryRow(query, plan.Title, plan.Description, plan.Price, plan.Duration).Scan(&id)
+
+	if scanErr != nil {
+		common.Logger.Printf("Failed to create a plan: %v\n", scanErr)
+		return 0, ERR_UNKNOWN
+	}
+
+	return id, ERR_NONE
+}
+
+func DeletePlanByID(db DB, id int) DBErr {
+	query := `DELETE FROM Plan WHERE id = ?`
+
+	_, err := db.Exec(query, id)
+	if err != nil {
+		common.Logger.Printf("Failed to delete a plan by ID: %v\n", err)
+		return ERR_UNKNOWN
+	}
+
+	return ERR_NONE
+}
+
+func ReplacePlan(db DB, plan Plan) DBErr {
+	query := `
+  BEGIN TRANSACTION;
+
+  DELETE FROM Plan WHERE id = ?;
+  INSERT INTO Plan (title, description, price, duration) VALUES (?, ?, ?, ?);
+
+  COMMIT;`
+
+	_, execErr := db.Exec(query, plan.ID, plan.Title, plan.Description, plan.Price, plan.Duration)
+
+	if execErr != nil {
+		common.Logger.Printf("Failed to replace a plan: %v\n", execErr)
 		return ERR_UNKNOWN
 	}
 
