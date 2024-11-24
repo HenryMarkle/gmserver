@@ -1,0 +1,99 @@
+package api
+
+import (
+	"database/sql"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
+
+	"github.com/HenryMarkle/gmserver/common"
+	"github.com/HenryMarkle/gmserver/db"
+	"github.com/HenryMarkle/gmserver/dto"
+)
+
+/*
+* API handles here
+ */
+
+func SignIn(ctx *gin.Context) {
+	var signin dto.Signin_POST
+	if bindErr := ctx.ShouldBindJSON(&signin); bindErr != nil {
+		ctx.String(400, "Invalid request data: %w", bindErr)
+		return
+	}
+
+	row := db.DB.QueryRow(`SELECT id, password FROM User WHERE email = ? AND deletedAt IS NULL`, signin.Email)
+
+	var userId int
+	var hashedPassword string
+
+	scanErr := row.Scan(&userId, &hashedPassword)
+
+	if scanErr != nil {
+		if scanErr == sql.ErrNoRows {
+			ctx.String(400, "Account not found")
+			return
+		}
+
+		common.Logger.Printf("Failed to signin: %v\n", scanErr)
+		ctx.Status(500)
+		return
+	}
+
+	compErr := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(signin.Password))
+	if compErr != nil {
+		ctx.String(400, "Invalid crredentials")
+		return
+	}
+
+	sessionId := uuid.New()
+
+	_, execErr := db.DB.Exec(`UPDATE User SET lastLogin = CURRENT_TIMESTAMP, session = ? WHERE id = ?`, sessionId.String(), userId)
+	if execErr != nil {
+		common.Logger.Printf("Failed to sign in (db error): %v\n", execErr)
+		ctx.Status(500)
+		return
+	}
+
+	ctx.SetCookie("gmserver-session", sessionId.String(), 1000*60*60*6, "/", "", true, true)
+
+	ctx.Status(200)
+}
+
+func Signout(ctx *gin.Context) {
+	cookie, cookieErr := ctx.Cookie("gmserver-session")
+
+	if cookieErr != nil {
+		common.Logger.Printf("Could not signout: %v\n", cookieErr)
+		ctx.Status(400)
+		return
+	}
+
+	row := db.DB.QueryRow(`SELECT id FROM User WHERE session = ?`, cookie)
+
+	var userId int
+	scanErr := row.Scan(&userId)
+	if scanErr != nil {
+		if scanErr == sql.ErrNoRows {
+			ctx.Status(200)
+			return
+		}
+
+		common.Logger.Printf("Failed to signout: %v\n", scanErr)
+
+		ctx.Status(500)
+		return
+	}
+
+	_, execErr := db.DB.Exec(`UPDATE User SET session = '' WHERE id = ?`, userId)
+	if execErr != nil {
+		common.Logger.Printf("Failed to signout: %v\n", execErr)
+		ctx.Status(500)
+		return
+	}
+
+	ctx.SetCookie("gmserver-session", "", 0, "/", "", true, true)
+
+	ctx.Status(200)
+}

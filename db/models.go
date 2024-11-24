@@ -16,6 +16,41 @@ type User struct {
 	ID         int
 }
 
+type LandingPageData struct {
+	Title                 string
+	StarterSentence       string
+	SecondStarterSentence string
+	PlansParagraph        string
+	AdsOnImageBoldText    string
+	AdsOnImageDescription string
+	EmailContact          string
+	TwitterContact        string
+	FacebookContact       string
+	InstigramContact      string
+	WhatsappContact       string
+	ID                    int
+}
+
+type LandingPageGeneralData struct {
+	Title                 string
+	StarterSentence       string
+	SecondStarterSentence string
+	PlansParagraph        string
+}
+
+type AdsInfo struct {
+	Title       string
+	Description string
+}
+
+type Contacts struct {
+	Email     string
+	Twitter   string
+	Instagram string
+	WhatsApp  string
+	Facebook  string
+}
+
 type Subscriber struct {
 	StartedAt     string
 	Name          string

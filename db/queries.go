@@ -9,19 +9,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-type (
-	DB    = *sql.DB
-	DBErr = int
-)
-
-const (
-	ERR_NONE DBErr = iota
-	ERR_DUPLICATE_ACCOUNT
-
-	ERR_UNKNOWN
-)
-
-func Construct(db DB) error {
+func Construct(db *sql.DB) error {
 	initPath := "init.sql"
 
 	initScript, readErr := os.ReadFile(initPath)
@@ -41,9 +29,9 @@ func Construct(db DB) error {
 }
 
 func AddAccount(
-	db DB,
+	db *sql.DB,
 	account User,
-) DBErr {
+) error {
 	dupCheckQuery := `SELECT id FROM User WHERE email = ?;`
 
 	res := db.QueryRow(dupCheckQuery, account.Email)
@@ -52,8 +40,7 @@ func AddAccount(
 	scanErr := res.Scan(&dupId)
 
 	if scanErr != sql.ErrNoRows {
-		common.Logger.Printf("Could not add an account with the same email as another account: %v\n", scanErr)
-		return ERR_DUPLICATE_ACCOUNT
+		return fmt.Errorf("Could not add an account with the same email as another account: %w\n", scanErr)
 	}
 
 	createQuery := `INSERT INTO Users (name, email, password, permission, age, gender, salary) VALUES (?, ?, ?, 0, ?, ?)`
@@ -61,75 +48,70 @@ func AddAccount(
 	_, execErr := db.Exec(createQuery, account.Name, account.Email, account.Password, account.Age, account.Gender, account.Salary)
 
 	if execErr != nil {
-		common.Logger.Printf("Failed to create account: %v\n", execErr)
-		return ERR_UNKNOWN
+		return fmt.Errorf("Failed to create account: %w\n", execErr)
 	}
 
-	return ERR_NONE
+	return nil
 }
 
-func GetTotalSubscriberPaymentAmount(db DB) (int, DBErr) {
+func GetTotalSubscriberPaymentAmount(db *sql.DB) (int, error) {
 	query := `SELECT SUM(paymentAmount) FROM Subscriber`
 
 	var totalAmount int
 
 	err := db.QueryRow(query).Scan(&totalAmount)
 	if err != nil {
-		common.Logger.Printf("Failed to query the total paid amount by subscribers: %v\n", err)
-		return 0, ERR_UNKNOWN
+		return 0, fmt.Errorf("Failed to query the total paid amount by subscribers: %w\n", err)
 	}
 
-	return totalAmount, ERR_NONE
+	return totalAmount, nil
 }
 
-func GetSubscriberCount(db DB) (int, DBErr) {
+func GetSubscriberCount(db *sql.DB) (int, error) {
 	query := `SELECT COUNT(*) FROM Subscriber`
 
 	var number int
 
 	err := db.QueryRow(query).Scan(&number)
 	if err != nil {
-		common.Logger.Printf("Failed to count the total number of subscribers: %v\n", err)
-		return 0, ERR_UNKNOWN
+		return 0, fmt.Errorf("Failed to count the total number of subscribers: %w\n", err)
 	}
 
-	return number, ERR_NONE
+	return number, nil
 }
 
 // / Time string must be of format '2024-11-21 12:00:00'
-func GetAllSubscribersEndingBefore(db DB, time string) (int, DBErr) {
+func GetAllSubscribersEndingBefore(db *sql.DB, time string) (int, error) {
 	query := `SELECT COUNT(endsAt) FROM Subscriber WHERE endsAt < ?`
 
 	var number int
 
 	err := db.QueryRow(query, time).Scan(&number)
 	if err != nil {
-		common.Logger.Printf("Failed to count subscribers ending before a given fate: %v\n", err)
-		return 0, ERR_UNKNOWN
+		return 0, fmt.Errorf("Failed to count subscribers ending before a given fate: %w\n", err)
 	}
 
-	return number, ERR_NONE
+	return number, nil
 }
 
 // / Time string must be of format '2024-11-21 12:00:00'
-func GetAllExpiredSubscribers(db DB, time string) (int, DBErr) {
+func GetAllExpiredSubscribers(db *sql.DB, time string) (int, error) {
 	query := `SELECT COUNT(endsAt) FROM Subscriber WHERE endsAt > ?`
 
 	var number int
 
 	err := db.QueryRow(query, time).Scan(&number)
 	if err != nil {
-		common.Logger.Printf("Failed to count expired subscibers: %v\n", err)
-		return 0, ERR_UNKNOWN
+		return 0, fmt.Errorf("Failed to count expired subscibers: %w\n", err)
 	}
 
-	return number, ERR_NONE
+	return number, nil
 }
 
-func CreateSubscriber(db DB,
+func CreateSubscriber(db *sql.DB,
 	name, surname, startDate, endDate string,
 	age, gender, payment, bucketPrice int,
-) DBErr {
+) error {
 	query := `
   INSERT INTO Subscriber 
   (name, surname, age, paymentAmount, startedAt, endsAt, bucketPrice) 
@@ -138,14 +120,13 @@ func CreateSubscriber(db DB,
 
 	_, err := db.Exec(query, name, surname, age, payment, startDate, endDate, bucketPrice)
 	if err != nil {
-		common.Logger.Printf("Failed to create subscriber: %v\n", err)
-		return ERR_UNKNOWN
+		return fmt.Errorf("Failed to create subscriber: %w\n", err)
 	}
 
-	return ERR_NONE
+	return nil
 }
 
-func GetAllSubscribers(db DB, limit int) ([]Subscriber, DBErr) {
+func GetAllSubscribers(db *sql.DB, limit int) ([]Subscriber, error) {
 	query := `SELECT id, name, surname, age, gender, duration, daysLeft, bucketPrice, paymentAmount, startedAt, endsAt, createdAt, updatedAt, deletedAt FROM Subscriber`
 
 	if limit > 0 {
@@ -154,8 +135,11 @@ func GetAllSubscribers(db DB, limit int) ([]Subscriber, DBErr) {
 
 	rows, err := db.Query(query)
 	if err != nil {
-		common.Logger.Printf("Failed to get all subscribers: %v\n", err)
-		return nil, ERR_UNKNOWN
+		if err == sql.ErrNoRows {
+			return []Subscriber{}, nil
+		}
+
+		return nil, fmt.Errorf("Failed to get all subscribers: %w\n", err)
 	}
 
 	defer rows.Close()
@@ -177,60 +161,58 @@ func GetAllSubscribers(db DB, limit int) ([]Subscriber, DBErr) {
 
 		if scanErr != nil {
 			common.Logger.Printf("Failed to scan subscriber rows at row (%d): %v\n", counter, scanErr)
+		} else {
+			subs = append(subs, Subscriber{
+				ID:            id,
+				Name:          name,
+				Surname:       surname,
+				Age:           age,
+				Gender:        gender,
+				Duration:      duration,
+				DaysLeft:      daysLeft,
+				BucketPrice:   bucketPrice,
+				PaymentAmount: paymentAmount,
+				StartedAt:     startedAt,
+				EndsAt:        endsAt,
+				CreatedAt:     createdAt,
+				UpdatedAt:     updatedAt,
+				DeletedAt:     deletedAt,
+			})
 		}
-
-		subs = append(subs, Subscriber{
-			ID:            id,
-			Name:          name,
-			Surname:       surname,
-			Age:           age,
-			Gender:        gender,
-			Duration:      duration,
-			DaysLeft:      daysLeft,
-			BucketPrice:   bucketPrice,
-			PaymentAmount: paymentAmount,
-			StartedAt:     startedAt,
-			EndsAt:        endsAt,
-			CreatedAt:     createdAt,
-			UpdatedAt:     updatedAt,
-			DeletedAt:     deletedAt,
-		})
 
 		counter++
 	}
 
-	return subs, ERR_NONE
+	return subs, nil
 }
 
-func GetSubscriberByID(db DB, id int) (*Subscriber, DBErr) {
+func GetSubscriberByID(db *sql.DB, id int) (*Subscriber, error) {
 	query := `SELECT id, name, surname, age, gender, duration, daysLeft, bucketPrice, paymentAmount, startedAt, endsAt, createdAt, updatedAt, deletedAt FROM Subscriber WHERE id = ? WHERE deletedAt IS NULL`
 
 	sub := &Subscriber{}
 	scanErr := db.QueryRow(query, id).Scan(&sub.ID, &sub.Name, &sub.Surname, &sub.Age, &sub.Gender, &sub.Duration, &sub.DaysLeft, &sub.BucketPrice, &sub.PaymentAmount, &sub.StartedAt, &sub.EndsAt, &sub.CreatedAt, &sub.UpdatedAt, &sub.DeletedAt)
 
 	if scanErr != nil {
-		common.Logger.Printf("Failed to get subscriber ID: %v\n", scanErr)
-		return nil, ERR_UNKNOWN
+		return nil, fmt.Errorf("Failed to get subscriber ID: %w\n", scanErr)
 	}
 
-	return sub, ERR_NONE
+	return sub, nil
 }
 
-func GetSubscriberByIDWithDeleted(db DB, id int) (*Subscriber, DBErr) {
+func GetSubscriberByIDWithDeleted(db *sql.DB, id int) (*Subscriber, error) {
 	query := `SELECT id, name, surname, age, gender, duration, daysLeft, bucketPrice, paymentAmount, startedAt, endsAt, createdAt, updatedAt, deletedAt FROM Subscriber WHERE id = ?`
 
 	sub := &Subscriber{}
 	scanErr := db.QueryRow(query, id).Scan(&sub.ID, &sub.Name, &sub.Surname, &sub.Age, &sub.Gender, &sub.Duration, &sub.DaysLeft, &sub.BucketPrice, &sub.PaymentAmount, &sub.StartedAt, &sub.EndsAt, &sub.CreatedAt, &sub.UpdatedAt, &sub.DeletedAt)
 
 	if scanErr != nil {
-		common.Logger.Printf("Failed to get subscriber ID: %v\n", scanErr)
-		return nil, ERR_UNKNOWN
+		return nil, fmt.Errorf("Failed to get subscriber ID: %w\n", scanErr)
 	}
 
-	return sub, ERR_NONE
+	return sub, nil
 }
 
-func DeleteSubscriberByID(db DB, id int, permanent bool) DBErr {
+func DeleteSubscriberByID(db *sql.DB, id int, permanent bool) error {
 	query := `DELETE FROM Subscriber WHERE id = ?`
 
 	if !permanent {
@@ -240,14 +222,13 @@ func DeleteSubscriberByID(db DB, id int, permanent bool) DBErr {
 	_, execErr := db.Exec(query, id)
 
 	if execErr != nil {
-		common.Logger.Printf("Failed to delete a subscriber by ID: %v\n", execErr)
-		return ERR_UNKNOWN
+		return fmt.Errorf("Failed to delete a subscriber by ID: %w\n", execErr)
 	}
 
-	return ERR_NONE
+	return nil
 }
 
-func UpdateSubscriber(db DB, data Subscriber) DBErr {
+func UpdateSubscriber(db *sql.DB, data Subscriber) error {
 	query := `
   UPDATE Subscriber 
   SET 
@@ -283,21 +264,25 @@ func UpdateSubscriber(db DB, data Subscriber) DBErr {
 		data.ID)
 
 	if execErr != nil {
-		common.Logger.Printf("Failed to update a subscriber: %v\n", execErr)
-		return ERR_UNKNOWN
+		return fmt.Errorf("Failed to update a subscriber: %w\n", execErr)
 	}
 
-	return ERR_NONE
+	return nil
 }
 
-func GetPlans(db DB) ([]Plan, DBErr) {
+func GetPlans(db *sql.DB) ([]Plan, error) {
 	query := `SELECT id, title, description, price, duration, createdAt, updatedAt, deletedAt FROM Plan WHERE deletedAt IS NULL`
 
 	rows, execErr := db.Query(query)
 	if execErr != nil {
-		common.Logger.Printf("Failed to get all plans: %v\n", execErr)
-		return nil, ERR_UNKNOWN
+		if execErr == sql.ErrNoRows {
+			return []Plan{}, nil
+		}
+
+		return nil, fmt.Errorf("Failed to get all plans: %w\n", execErr)
 	}
+
+	defer rows.Close()
 
 	plans := []Plan{}
 
@@ -309,23 +294,29 @@ func GetPlans(db DB) ([]Plan, DBErr) {
 
 		if scanErr != nil {
 			common.Logger.Printf("Failed to scal plans rows at row (%d): %v\n", counter, scanErr)
-			return nil, ERR_UNKNOWN
+		} else {
+			plans = append(plans, plan)
 		}
 
 		plans = append(plans, plan)
 	}
 
-	return plans, ERR_NONE
+	return plans, nil
 }
 
-func GetPlansWithDeleted(db DB) ([]Plan, DBErr) {
+func GetPlansWithDeleted(db *sql.DB) ([]Plan, error) {
 	query := `SELECT id, title, description, price, duration, createdAt, updatedAt, deletedAt FROM Plan`
 
 	rows, execErr := db.Query(query)
 	if execErr != nil {
-		common.Logger.Printf("Failed to get all plans: %v\n", execErr)
-		return nil, ERR_UNKNOWN
+		if execErr == sql.ErrNoRows {
+			return []Plan{}, nil
+		}
+
+		return nil, fmt.Errorf("Failed to get all plans: %w\n", execErr)
 	}
+
+	defer rows.Close()
 
 	plans := []Plan{}
 
@@ -337,16 +328,17 @@ func GetPlansWithDeleted(db DB) ([]Plan, DBErr) {
 
 		if scanErr != nil {
 			common.Logger.Printf("Failed to scal plans rows at row (%d): %v\n", counter, scanErr)
-			return nil, ERR_UNKNOWN
+		} else {
+			plans = append(plans, plan)
 		}
 
 		plans = append(plans, plan)
 	}
 
-	return plans, ERR_NONE
+	return plans, nil
 }
 
-func GetPlanByID(db DB, id int) (*Plan, DBErr) {
+func GetPlanByID(db *sql.DB, id int) (*Plan, error) {
 	query := `SELECT title, description, price, duration, createdAt, updatedAt, deletedAt FROM Plan WHERE id = ?`
 
 	plan := &Plan{}
@@ -354,53 +346,42 @@ func GetPlanByID(db DB, id int) (*Plan, DBErr) {
 	scanErr := db.QueryRow(query, id).Scan(&plan.Title, &plan.Description, &plan.Price, &plan.Duration, &plan.CreatedAt, &plan.UpdatedAt, &plan.DeletedAt)
 
 	if scanErr != nil {
-		common.Logger.Printf("Failed to get a plan by ID: %v\n", scanErr)
-		return nil, ERR_UNKNOWN
+		return nil, fmt.Errorf("Failed to get a plan by ID: %wn", scanErr)
 	}
 
-	return plan, ERR_NONE
+	return plan, nil
 }
 
-func CreatePlan(db DB, plan Plan) (int, DBErr) {
+func CreatePlan(db *sql.DB, plan Plan) (int64, error) {
 	query := `
-  BEGIN TRANSACTION;
-
   INSERT INTO Plan (title, description, price, duration) VALUES (?, ?, ?, ?);
-
-  SELECT LAST_INSERT_ROWID();
-
-  COMMIT;
   `
+	res, queryErr := db.Exec(query, plan.Title, plan.Description, plan.Price, plan.Duration)
+	id, lastInsertErr := res.LastInsertId()
 
-	var id int
-	scanErr := db.QueryRow(query, plan.Title, plan.Description, plan.Price, plan.Duration).Scan(&id)
-
-	if scanErr != nil {
-		common.Logger.Printf("Failed to create a plan: %v\n", scanErr)
-		return 0, ERR_UNKNOWN
+	if queryErr != nil || lastInsertErr != nil {
+		return 0, fmt.Errorf("Failed to create a plan: %w\n", queryErr)
 	}
 
-	return id, ERR_NONE
+	return id, nil
 }
 
-func DeletePlanByID(db DB, id int) DBErr {
+func DeletePlanByID(db *sql.DB, id int) error {
 	query := `DELETE FROM Plan WHERE id = ?`
 
 	_, err := db.Exec(query, id)
 	if err != nil {
-		common.Logger.Printf("Failed to delete a plan by ID: %v\n", err)
-		return ERR_UNKNOWN
+		return fmt.Errorf("Failed to delete a plan by ID: %w\n", err)
 	}
 
-	return ERR_NONE
+	return nil
 }
 
-func ReplacePlan(db DB, plan Plan) DBErr {
+func ReplacePlan(db *sql.DB, plan Plan) error {
 	tx, txErr := db.Begin()
 
 	if tx != nil {
-		common.Logger.Printf("Could not begin a new transaction to replace a plan: %v\n", txErr)
-		return ERR_UNKNOWN
+		return fmt.Errorf("Could not begin a new transaction to replace a plan: %w\n", txErr)
 	}
 
 	deleteQuery := `DELETE FROM Plan WHERE id = ?`
@@ -409,8 +390,7 @@ func ReplacePlan(db DB, plan Plan) DBErr {
 
 	if deleteErr != nil {
 		tx.Rollback()
-		common.Logger.Printf("Failed to delete a plan by ID in a transaction: %v\n", deleteErr)
-		return ERR_UNKNOWN
+		return fmt.Errorf("Failed to delete a plan by ID in a transaction: %w\n", deleteErr)
 	}
 
 	insertQuery := `INSERT INTO Plan (title, description, price, duration) VALUES (?, ?, ?, ?);`
@@ -419,17 +399,715 @@ func ReplacePlan(db DB, plan Plan) DBErr {
 
 	if insertErr != nil {
 		tx.Rollback()
-		common.Logger.Printf("Failed to create a plan in a transaction: %v\n", insertErr)
-		return ERR_UNKNOWN
+		return fmt.Errorf("Failed to create a plan in a transaction: %w\n", insertErr)
 	}
 
 	commitErr := tx.Commit()
 
 	if commitErr != nil {
 		tx.Rollback()
-		common.Logger.Printf("Could not commit plan replacement: %v\n", commitErr)
-		return ERR_UNKNOWN
+		return fmt.Errorf("Could not commit plan replacement: %w\n", commitErr)
 	}
 
-	return ERR_NONE
+	return nil
+}
+
+func GetProducts(db *sql.DB) ([]Product, error) {
+	query := `SELECT id, name, description, price, marka, categoryId FROM Product`
+
+	rows, queryErr := db.Query(query)
+
+	if queryErr != nil {
+		if queryErr == sql.ErrNoRows {
+			return []Product{}, nil
+		}
+
+		return nil, fmt.Errorf("Failed to get all products: %w\n", queryErr)
+	}
+
+	defer rows.Close()
+
+	products := []Product{}
+	counter := 0
+
+	for rows.Next() {
+		product := Product{}
+
+		scanErr := rows.Scan(&product.ID, &product.Name, &product.Description, &product.Price, &product.Marka, &product.CategoryID)
+		if scanErr != nil {
+			common.Logger.Printf("Failed to scan a product from rows at row (%d): %v\n", counter, scanErr)
+		} else {
+			products = append(products, product)
+		}
+
+		counter++
+	}
+
+	return products, nil
+}
+
+// / Categories come with empty arrays
+func GetProductsWithCategories(db *sql.DB) ([]Product, error) {
+	query := `SELECT P.id, P.name, P.description, P.price, P.marka, P.categoryId, C.id, C.name FROM Product AS P LEFT JOIN ProductCategory AS C`
+
+	rows, queryErr := db.Query(query)
+
+	if queryErr != nil {
+		if queryErr == sql.ErrNoRows {
+			return []Product{}, nil
+		}
+
+		return nil, fmt.Errorf("Failed to get all products: %w\n", queryErr)
+	}
+
+	defer rows.Close()
+
+	products := []Product{}
+	counter := 0
+
+	for rows.Next() {
+		product := Product{Category: &ProductCategory{}}
+
+		scanErr := rows.Scan(&product.ID, &product.Name, &product.Description, &product.Price, &product.Marka, &product.Category.ID, &product.CategoryID, &product.Category.Name)
+		if scanErr != nil {
+			common.Logger.Printf("Failed to scan a product from rows at row (%d): %v\n", counter, scanErr)
+		} else {
+			products = append(products, product)
+		}
+
+		counter++
+	}
+
+	return products, nil
+}
+
+func GetProductByID(db *sql.DB, id int) (*Product, error) {
+	query := `SELECT P.id, P.name, P.description, P.price, P.marka, P.categoryId FROM Product AS P WHERE id = ?`
+
+	product := &Product{}
+
+	scanErr := db.QueryRow(query, id).Scan(&product.ID, &product.Name, &product.Description, &product.Price, &product.Marka, &product.CategoryID)
+
+	if scanErr != nil {
+		if scanErr == sql.ErrNoRows {
+			return nil, fmt.Errorf("Product with ID (%d) not found\n", id)
+		}
+
+		return nil, fmt.Errorf("Failed to get a product by ID (%d): %w\n", id, scanErr)
+	}
+
+	return product, nil
+}
+
+// Category comes with an empty array
+func GetProductWithCategoryByID(db *sql.DB, id int) (*Product, error) {
+	query := `SELECT P.id, P.name, P.description, P.price, P.marka, P.categoryId, C.id, C.name FROM Product AS P LEFT JOIN ProductCategory WHERE P.id = ?`
+
+	product := &Product{Category: &ProductCategory{}}
+
+	scanErr := db.QueryRow(query, id).Scan(&product.ID, &product.Name, &product.Description, &product.Price, &product.Marka, &product.CategoryID, &product.Category.ID, &product.Category.Name)
+
+	if scanErr != nil {
+		if scanErr == sql.ErrNoRows {
+			return nil, fmt.Errorf("Product with ID (%d) not found\n", id)
+		}
+
+		return nil, fmt.Errorf("Failed to get a product by ID (%d): %w\n", id, scanErr)
+
+	}
+
+	return product, nil
+}
+
+func GetLandingPageGeneralInfo(db *sql.DB) (*LandingPageGeneralData, error) {
+	query := `SELECT title, starterSentence, secondStarterSentence, plansParagraph FROM LandingPageData LIMIT 1`
+
+	info := &LandingPageGeneralData{}
+
+	scanErr := db.QueryRow(query).Scan(&info.Title, &info.StarterSentence, &info.SecondStarterSentence, &info.PlansParagraph)
+
+	if scanErr != nil {
+		return nil, fmt.Errorf("Failed to get landing page general info: %w\n", scanErr)
+	}
+
+	return info, nil
+}
+
+func UpdateLandingPageGeneralInfo(db *sql.DB, info LandingPageGeneralData) error {
+	query := `UPDATE LandingPageData SET title = ?, starterSentence = ?, secondStarterSentence = ?, plansParagraph = ?`
+
+	_, execErr := db.Exec(query, info.Title, info.StarterSentence, info.SecondStarterSentence, info.PlansParagraph)
+
+	if execErr != nil {
+		return fmt.Errorf("Failed to update landing page general info: %w\n", execErr)
+	}
+
+	return nil
+}
+
+func GetPlansParagraph(db *sql.DB) (string, error) {
+	query := `SELECT plansParagraph FROM LandingPageData`
+
+	var text string
+
+	scanErr := db.QueryRow(query).Scan(&text)
+
+	if scanErr != nil {
+		return "", fmt.Errorf("Failed to get plans paragraph: %w\n", scanErr)
+	}
+
+	return text, nil
+}
+
+func UpdatePlansParagraph(db *sql.DB, text string) error {
+	query := `UPDATE LandingPageData SET plansParagraph = ?`
+
+	_, execErr := db.Exec(query, text)
+	if execErr != nil {
+		return fmt.Errorf("Failed to update plans paragraph: %w\n", execErr)
+	}
+
+	return nil
+}
+
+func GetAdsInfo(db *sql.DB) (*AdsInfo, error) {
+	query := `SELECT adsOnImageBoldText, adsOnImageDescription FROM LandingPageData`
+
+	info := &AdsInfo{}
+
+	scanErr := db.QueryRow(query).Scan(&info.Title, &info.Description)
+	if scanErr != nil {
+		return nil, fmt.Errorf("Failed to get ads info: %w\n", scanErr)
+	}
+
+	return info, nil
+}
+
+func UpdateAdsInfo(db *sql.DB, info AdsInfo) error {
+	query := `UPDATE LandingPageData SET adsOnImageBoldText = ?, adsOnImageDescription = ?`
+
+	_, execErr := db.Exec(query, info.Title, info.Description)
+	if execErr != nil {
+		return fmt.Errorf("Failed to update ads info: %w\n", execErr)
+	}
+
+	return nil
+}
+
+func GetContacts(db *sql.DB) (*Contacts, error) {
+	query := `SELECT emailContact, twitterContact, instigramContact, whatsappContact, facebookContact FROM LandingPageData`
+
+	contacts := &Contacts{}
+
+	scanErr := db.QueryRow(query).Scan(&contacts.Email, &contacts.Twitter, &contacts.Instagram, &contacts.WhatsApp, &contacts.Facebook)
+	if scanErr != nil {
+		return nil, fmt.Errorf("Failed to get contacts: %w\n", scanErr)
+	}
+
+	return contacts, nil
+}
+
+func UpdateContacts(db *sql.DB, contacts Contacts) error {
+	query := `UPDATE LandingPageData SET emailContact = ?, twitterContact = ?, instigramContact = ?, whatsappContact = ?, facebookContact = ?`
+
+	_, execErr := db.Exec(query, contacts.Email, contacts.Twitter, contacts.Instagram, contacts.WhatsApp, contacts.Facebook)
+	if execErr != nil {
+		return fmt.Errorf("Failed to update contacts: %w\n", execErr)
+	}
+
+	return nil
+}
+
+func GetLandingPageInfo(db *sql.DB) (*LandingPageData, error) {
+	query := `SELECT title, starterSentence, secondStarterSentence, plansParagraph, adsOnImageBoldText, adsOnImageDescription, emailContact, twitterContact, facebookContact, instigramContact, whatsappContact FROM LandingPageData LIMIT 1`
+
+	info := &LandingPageData{}
+
+	scanErr := db.QueryRow(query).Scan(
+		&info.Title,
+		&info.StarterSentence,
+		&info.SecondStarterSentence,
+		&info.PlansParagraph,
+		&info.AdsOnImageBoldText,
+		&info.AdsOnImageDescription,
+		&info.EmailContact,
+		&info.TwitterContact,
+		&info.FacebookContact,
+		&info.InstigramContact,
+		&info.WhatsappContact)
+
+	if scanErr != nil {
+		return nil, fmt.Errorf("Failed to get landing page general info: %w\n", scanErr)
+	}
+
+	return info, nil
+}
+
+func GetAllEvents(db *sql.DB) ([]Event, error) {
+	query := `SELECT id, event, target, actorId, targetId, date FROM Event`
+
+	rows, queryErr := db.Query(query)
+
+	if queryErr != nil {
+		if queryErr == sql.ErrNoRows {
+			return []Event{}, nil
+		}
+
+		common.Logger.Printf("Failed to get all events: %v\n", queryErr)
+	}
+
+	defer rows.Close()
+
+	events := []Event{}
+	counter := 0
+	for rows.Next() {
+		event := Event{Actor: nil}
+
+		scanErr := rows.Scan(&event.ID, &event.Event, &event.Target, &event.ActorID, &event.TargetID, &event.Date)
+		if scanErr != nil {
+			common.Logger.Printf("Failed to scan event from rows at row (%d): %v\n", counter, scanErr)
+		} else {
+			events = append(events, event)
+		}
+
+		counter++
+	}
+
+	return events, nil
+}
+
+func DidUserSeeEvent(db *sql.DB, userId, eventId int) (bool, error) {
+	query := `SELECT EXISTS(
+    SELECT 1 FROM SeenEvent
+    WHERE eventId = ? AND userId = ?
+  );`
+
+	var seen bool
+
+	scanErr := db.QueryRow(query, eventId, userId).Scan(&seen)
+	if scanErr != nil {
+		return false, fmt.Errorf("Failed to check if an event was seen by a user: %w\n", scanErr)
+	}
+
+	return seen, nil
+}
+
+func MarkEventAsSeen(db *sql.DB, userId, eventId int) error {
+	query := `INSERT IGNORE INTO SeenEvent (eventId, userId) VALUES (?, ?)`
+
+	_, execErr := db.Exec(query, eventId, userId)
+	if execErr != nil {
+		return fmt.Errorf("Failed to mark an event as seen: %w\n", execErr)
+	}
+
+	return nil
+}
+
+func MarkAllEventsAsSeen(db *sql.DB, userId int) error {
+	unreadQuery := `SELECT E.id FROM Event AS E WHERE NOT EXISTS (
+    SELECT 1 FROM SeenEvent AS S WHERE S.eventId = E.Id AND S.userId = ?
+  )`
+
+	rows, queryErr := db.Query(unreadQuery, userId)
+
+	if queryErr != nil {
+		if queryErr == sql.ErrNoRows {
+			return nil
+		}
+
+		return fmt.Errorf("Failed to mark all events as seen by a user (querying unread): %w\n", queryErr)
+	}
+
+	defer rows.Close()
+
+	counter := 0
+	for rows.Next() {
+		var eventId int
+
+		scanErr := rows.Scan(&eventId)
+
+		if scanErr != nil {
+			common.Logger.Printf("Failed to scan an unseen event rows at row (%d): %v\b", counter, scanErr)
+		} else {
+			_, execErr := db.Exec(`INSERT IGNORE INTO SeenEvent (eventId, userrId) VALUES (?, ?)`, eventId, userId)
+			if execErr != nil {
+				common.Logger.Printf("Failed to mark an event (id: %d) as seen by a user: %v\n", eventId, execErr)
+			}
+		}
+
+		counter++
+	}
+
+	return nil
+}
+
+func GetAllExercises(db *sql.DB) ([]Excercise, error) {
+	query := `SELECT id, name, description, categoryId FROM Excercise`
+
+	rows, queryErr := db.Query(query)
+
+	if queryErr != nil {
+		if queryErr == sql.ErrNoRows {
+			return []Excercise{}, nil
+		}
+
+		return nil, fmt.Errorf("Failed to get all exercises: %w\n", queryErr)
+	}
+
+	defer rows.Close()
+
+	exercises := []Excercise{}
+	counter := 0
+
+	for rows.Next() {
+		exercise := Excercise{}
+
+		scanErr := rows.Scan(&exercise.ID, &exercise.Name, &exercise.Description, &exercise.CategoryID)
+
+		if scanErr != nil {
+			common.Logger.Printf("Failed to scan an exercise from rows at row (%d): %v\n", counter, scanErr)
+		} else {
+			exercises = append(exercises, exercise)
+		}
+
+		counter++
+	}
+
+	return exercises, nil
+}
+
+func GetAllExercisesOfSection(db *sql.DB, sectionId int) ([]Excercise, error) {
+	query := `SELECT id, name, description FROM Excercise WHERE categoryId = ?`
+
+	rows, queryErr := db.Query(query, sectionId)
+
+	if queryErr != nil {
+		if queryErr == sql.ErrNoRows {
+			return []Excercise{}, nil
+		}
+
+		return nil, fmt.Errorf("Failed to get all exercises: %w\n", queryErr)
+	}
+
+	defer rows.Close()
+
+	exercises := []Excercise{}
+	counter := 0
+
+	for rows.Next() {
+		exercise := Excercise{CategoryID: sectionId}
+
+		scanErr := rows.Scan(&exercise.ID, &exercise.Name, &exercise.Description)
+
+		if scanErr != nil {
+			common.Logger.Printf("Failed to scan an exercise from rows at row (%d): %v\n", counter, scanErr)
+		} else {
+			exercises = append(exercises, exercise)
+		}
+
+		counter++
+	}
+
+	return exercises, nil
+}
+
+func GetAllExercisesWithSections(db *sql.DB) ([]Excercise, error) {
+	query := `SELECT E.id, E.name, E.description, E.categoryId, S.id, S.Name FROM Excercise AS E LEFT JOIN ExcerciseCategory AS C`
+
+	rows, queryErr := db.Query(query)
+
+	if queryErr != nil {
+		if queryErr == sql.ErrNoRows {
+			return []Excercise{}, nil
+		}
+
+		return nil, fmt.Errorf("Failed to get all exercises: %w\n", queryErr)
+	}
+
+	defer rows.Close()
+
+	exercises := []Excercise{}
+	counter := 0
+
+	for rows.Next() {
+		exercise := Excercise{Category: &ExcerciseCategory{}}
+
+		scanErr := rows.Scan(&exercise.ID, &exercise.Name, &exercise.Description, &exercise.CategoryID, &exercise.Category.ID, &exercise.Category.Name)
+
+		if scanErr != nil {
+			common.Logger.Printf("Failed to scan an exercise from rows at row (%d): %v\n", counter, scanErr)
+		} else {
+			exercises = append(exercises, exercise)
+		}
+
+		counter++
+	}
+
+	return exercises, nil
+}
+
+func GetAllExerciseSections(db *sql.DB) ([]ExcerciseCategory, error) {
+	query := `SELECT id, name FROM ExcerciseCategory`
+
+	rows, queryErr := db.Query(query)
+
+	if queryErr != nil {
+		if queryErr == sql.ErrNoRows {
+			return []ExcerciseCategory{}, nil
+		}
+
+		return nil, fmt.Errorf("Failed to get all exercise sections: %w\n", queryErr)
+	}
+
+	defer rows.Close()
+
+	sections := []ExcerciseCategory{}
+	counter := 0
+	for rows.Next() {
+		section := ExcerciseCategory{}
+
+		scanErr := rows.Scan(&section.ID, &section.Name)
+		if scanErr != nil {
+			common.Logger.Printf("Failed to scan exercise section from rows at row (%d): %v\n", counter, scanErr)
+		} else {
+			sections = append(sections, section)
+		}
+
+		counter++
+	}
+
+	return sections, nil
+}
+
+func GetAllExerciseSectionsWithExercises(db *sql.DB) ([]ExcerciseCategory, error) {
+	query := `SELECT id, name FROM ExcerciseCategory`
+
+	rows, queryErr := db.Query(query)
+
+	if queryErr != nil {
+		if queryErr == sql.ErrNoRows {
+			return []ExcerciseCategory{}, nil
+		}
+
+		return nil, fmt.Errorf("Failed to get all exercise sections: %w\n", queryErr)
+	}
+
+	defer rows.Close()
+
+	sections := []ExcerciseCategory{}
+	counter := 0
+	for rows.Next() {
+		section := ExcerciseCategory{}
+
+		scanErr := rows.Scan(&section.ID, &section.Name)
+		if scanErr != nil {
+			common.Logger.Printf("Failed to scan exercise section from rows at row (%d): %v\n", counter, scanErr)
+		} else {
+			exercises, exerQueryErr := GetAllExercisesOfSection(db, section.ID)
+			if exerQueryErr != nil {
+				common.Logger.Printf("Failed to get all exercises of section (id: %d) of row (%d): %v\n", section.ID, counter, exerQueryErr)
+			} else {
+				section.Excercises = exercises
+			}
+
+			sections = append(sections, section)
+		}
+
+		counter++
+	}
+
+	return sections, nil
+}
+
+func GetExerciseSectionByIDWithExercises(db *sql.DB, id int) (*ExcerciseCategory, error) {
+	query := `SELECT name FROM ExcerciseCategory WHERE id = ?`
+
+	row := db.QueryRow(query, id)
+
+	section := ExcerciseCategory{ID: id}
+
+	scanErr := row.Scan(&section.Name)
+
+	if scanErr != nil {
+		if scanErr == sql.ErrNoRows {
+			return nil, fmt.Errorf("Failed to get an exercise section by id with exercises (not found)")
+		}
+
+		return nil, fmt.Errorf("Failed to get an exercise section: %w\n", scanErr)
+	}
+
+	exercises, exerQueryErr := GetAllExercisesOfSection(db, id)
+	if exerQueryErr == nil {
+		section.Excercises = exercises
+	}
+
+	return &section, nil
+}
+
+func GetExerciseSectionByNameWithExercises(db *sql.DB, name string) (*ExcerciseCategory, error) {
+	query := `SELECT id FROM ExcerciseCategory WHERE name = ? LIMIT 1`
+
+	row := db.QueryRow(query, name)
+
+	section := ExcerciseCategory{Name: name}
+
+	scanErr := row.Scan(&section.ID)
+
+	if scanErr != nil {
+		if scanErr == sql.ErrNoRows {
+			return nil, fmt.Errorf("Failed to get an exercise section by name with exercises (not found)")
+		}
+
+		return nil, fmt.Errorf("Failed to get an exercise section: %w\n", scanErr)
+	}
+
+	exercises, exerQueryErr := GetAllExercisesOfSection(db, section.ID)
+	if exerQueryErr == nil {
+		section.Excercises = exercises
+	}
+
+	return &section, nil
+}
+
+func CreateExerciseSection(db *sql.DB, name string) (int64, error) {
+	query := `INSERT INTO ExcerciseCategory (name) VALUES (?)`
+
+	res, execErr := db.Exec(query, name)
+
+	if execErr != nil {
+		return 0, fmt.Errorf("Failed to create an exercise section: %w\n", execErr)
+	}
+
+	id, lastInsertErr := res.LastInsertId()
+	if lastInsertErr != nil {
+		return 0, fmt.Errorf("Failed to retrieve the inserted ID: %w\n", lastInsertErr)
+	}
+
+	return id, nil
+}
+
+func DeleteExerciseDeleteByName(db *sql.DB, name string) error {
+	query := `DELETE FROM ExcerciseCategory WHERE name = ?`
+
+	_, execErr := db.Exec(query, name)
+	if execErr != nil {
+		return fmt.Errorf("Failed to delete an exercise section (name: %s): %w\n", name, execErr)
+	}
+
+	return nil
+}
+
+func UpdateExerciseSectionByID(db *sql.DB, data ExcerciseCategory) error {
+	query := `UPDATE ExcerciseCategory SET name = ? WHERE id = ?`
+
+	_, execErr := db.Exec(query, data.Name, data.ID)
+
+	if execErr != nil {
+		return fmt.Errorf("Failed to update an exercise section by ID (id: %d): %w\n", data.ID, execErr)
+	}
+
+	return nil
+}
+
+func DeleteExerciseSectionByIDWithExercises(db *sql.DB, id int) error {
+	deleteSectionQuery := `DELETE FROM ExcerciseCategory WHERE id = ?`
+	deleteExercisesQuery := `DELETE FROM Excercise WHERE categoryId = ?`
+
+	tx, txErr := db.Begin()
+
+	if txErr != nil {
+		return fmt.Errorf("Failed to delete exercise section with exercises (failed to begine transaction): %w\n", txErr)
+	}
+
+	_, deleteExerErr := tx.Exec(deleteExercisesQuery, id)
+	if deleteExerErr != nil {
+		tx.Rollback()
+		return fmt.Errorf("Failed to delete exercise section with exercises (failed to delete exercises): %w\n", deleteExerErr)
+	}
+
+	_, deleteSectionErr := tx.Exec(deleteSectionQuery, id)
+	if deleteSectionErr != nil {
+		tx.Rollback()
+		return fmt.Errorf("Failed to delete exercise section with exercises (failed to delete section): %w\n", deleteSectionErr)
+	}
+
+	commitErr := tx.Commit()
+	if commitErr != nil {
+		tx.Rollback()
+		return fmt.Errorf("Failed to delete exercise section with exercises (failed to commit transaction): %w\n", commitErr)
+	}
+
+	return nil
+}
+
+func CountExercisesOfExerciseSectionByName(db *sql.DB, name string) (int, error) {
+	query := `
+    SELECT COUNT(*) 
+    FROM Excercise AS E 
+    WHERE EXISTS (
+      SELECT id FROM ExcerciseCategory WHERE name = ? AND id = E.categoryId LIMIT 1
+    )
+  `
+	var count int
+
+	row := db.QueryRow(query, name)
+
+	scanErr := row.Scan(&count)
+	if scanErr != nil {
+		if scanErr == sql.ErrNoRows {
+			return 0, fmt.Errorf("Failed to count exercises of an exercise section by name: (exercise section not found)")
+		}
+		return 0, fmt.Errorf("Failed to count exercises of an exercise section by name: %w\n", scanErr)
+	}
+
+	return count, nil
+}
+
+func CreateExercise(db *sql.DB, exercise Excercise) (int64, error) {
+	query := `INSERT INTO Excercise (name, description, categoryId) VALUES(?, ?, ?)`
+
+	res, execErr := db.Exec(query, exercise.Name, exercise.Description, exercise.CategoryID)
+	if execErr != nil {
+		return 0, fmt.Errorf("Failed to create exercise: %w\n", execErr)
+	}
+
+	id, scanErr := res.LastInsertId()
+	if scanErr != nil {
+		return 0, fmt.Errorf("Failed to obtain created exercise id: %w\n", scanErr)
+	}
+
+	return id, nil
+}
+
+func DeleteExerciseByID(db *sql.DB, id int) error {
+	query := `DELETE FROM Excercise WHERE id = ?`
+
+	_, execErr := db.Exec(query, id)
+	if execErr != nil {
+		return fmt.Errorf("Failed to delete an exercise by ID (id: %d): %w\n", id, execErr)
+	}
+
+	return nil
+}
+
+func DeleteExerciseByName(db *sql.DB, name string) error {
+	query := `DELETE FROM Excercise WHERE name = ?`
+
+	_, execErr := db.Exec(query, name)
+	if execErr != nil {
+		return fmt.Errorf("Failed to delete an exercise by name (name: %s): %w\n", name, execErr)
+	}
+
+	return nil
+}
+
+func UpdateExercise(db *sql.DB, exercise Excercise) error {
+	query := `UPDATE Excercise SET name = ?, description = ?, categoryId = ? WHERE id = ?`
+
+	_, execErr := db.Exec(query, exercise.Name, exercise.Description, exercise.CategoryID, exercise.ID)
+	if execErr != nil {
+		return fmt.Errorf("Failed to update exercise: %w\n", execErr)
+	}
+
+	return nil
 }
