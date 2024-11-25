@@ -16,9 +16,19 @@ func main() {
 
 	{
 		v1 := server.Group("/v1")
-
 		v1.POST("/signin", api.SignIn)
-		v1.POST("/signout", api.Signout)
+
+		{
+			auth := v1.Group("/auth")
+			auth.Use(api.Auth())
+			auth.POST("/signout", api.Signout)
+			auth.PATCH("/changepassword", api.ChangePassword)
+
+			{
+				admin := auth.Group("/admin")
+				admin.Use(api.AdminOnly())
+			}
+		}
 	}
 
 	server.Run()

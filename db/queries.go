@@ -54,6 +54,55 @@ func AddAccount(
 	return nil
 }
 
+func GetUserByID(db *sql.DB, id int) (*User, error) {
+	query := `SELECT email, name, password, session, lastLogin, age, salary, permission, gender, startDate FROM User WHERE id = ?`
+
+	row := db.QueryRow(query, id)
+
+	user := User{ID: id}
+
+	scanErr := row.Scan(&user.Email, &user.Name, &user.Password, &user.Session, &user.LastLogin, &user.Age, &user.Salary, &user.Permission, &user.Gender, &user.StartDate)
+	if scanErr != nil {
+		if scanErr == sql.ErrNoRows {
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("Failed to get a user by ID (id: %d): %w\n", id, scanErr)
+	}
+
+	return &user, nil
+}
+
+func GetUserBySession(db *sql.DB, session string) (*User, error) {
+	query := `SELECT id, email, name, password, lastLogin, age, salary, permission, gender, startDate FROM User WHERE session = ?`
+
+	row := db.QueryRow(query, session)
+
+	user := User{Session: session}
+
+	scanErr := row.Scan(&user.ID, &user.Email, &user.Name, &user.Password, &user.Session, &user.LastLogin, &user.Age, &user.Salary, &user.Permission, &user.Gender, &user.StartDate)
+	if scanErr != nil {
+		if scanErr == sql.ErrNoRows {
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("Failed to get a user by session: %w\n", scanErr)
+	}
+
+	return &user, nil
+}
+
+func ChangeUserPassword(db *sql.DB, id int, newPassword string) error {
+	query := `UPDATE User SET password = ? WHERE id = ?`
+
+	_, execErr := db.Exec(query, newPassword, id)
+	if execErr != nil {
+		return fmt.Errorf("Failed to update user password by ID (id: %d): %w\n", id, execErr)
+	}
+
+	return nil
+}
+
 func GetTotalSubscriberPaymentAmount(db *sql.DB) (int, error) {
 	query := `SELECT SUM(paymentAmount) FROM Subscriber`
 

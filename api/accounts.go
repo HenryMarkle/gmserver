@@ -2,6 +2,7 @@ package api
 
 import (
 	"database/sql"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -96,4 +97,37 @@ func Signout(ctx *gin.Context) {
 	ctx.SetCookie("gmserver-session", "", 0, "/", "", true, true)
 
 	ctx.Status(200)
+}
+
+func ChangePassword(ctx *gin.Context) {
+	data := dto.ChangePassword_PATCH{}
+
+	bindErr := ctx.ShouldBindJSON(&data)
+	if bindErr != nil {
+		ctx.String(http.StatusBadRequest, "Invalid data: %v", bindErr)
+		return
+	}
+
+	user, exists := ctx.Get("user")
+	if !exists {
+		ctx.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	userPtr := user.(*db.User)
+
+	compErr := bcrypt.CompareHashAndPassword([]byte(userPtr.Password), []byte(data.OldPassword))
+	if compErr != nil {
+		ctx.String(http.StatusBadRequest, "Incorrect credentials")
+		return
+	}
+
+	queryErr := db.ChangeUserPassword(db.DB, userPtr.ID, data.NewPassword)
+	if queryErr != nil {
+		common.Logger.Printf("Failed to change user password: %v\n", queryErr)
+		ctx.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.Status(http.StatusOK)
 }
