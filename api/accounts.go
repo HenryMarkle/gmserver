@@ -18,7 +18,7 @@ import (
  */
 
 func SignIn(ctx *gin.Context) {
-	var signin dto.Signin_POST
+	signin := dto.Signin_Req{}
 	if bindErr := ctx.ShouldBindJSON(&signin); bindErr != nil {
 		ctx.String(400, "Invalid request data: %w", bindErr)
 		return
@@ -100,7 +100,7 @@ func Signout(ctx *gin.Context) {
 }
 
 func ChangePassword(ctx *gin.Context) {
-	data := dto.ChangePassword_PATCH{}
+	data := dto.ChangePassword_Req{}
 
 	bindErr := ctx.ShouldBindJSON(&data)
 	if bindErr != nil {

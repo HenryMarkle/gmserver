@@ -92,6 +92,30 @@ func GetUserBySession(db *sql.DB, session string) (*User, error) {
 	return &user, nil
 }
 
+func UserExistsByID(db *sql.DB, id int) bool {
+	query := `SELECT EXISTS (
+    SELECT 1 FROM User WHERE id = ?
+  );`
+
+	exists := false
+
+	_ = db.QueryRow(query, id).Scan(&exists)
+
+	return exists
+}
+
+func UserExistsByEmail(db *sql.DB, email string) bool {
+	query := `SELECT EXISTS (
+    SELECT 1 FROM User WHERE email = ?
+  );`
+
+	exists := false
+
+	_ = db.QueryRow(query, email).Scan(&exists)
+
+	return exists
+}
+
 func ChangeUserPassword(db *sql.DB, id int, newPassword string) error {
 	query := `UPDATE User SET password = ? WHERE id = ?`
 
@@ -101,6 +125,18 @@ func ChangeUserPassword(db *sql.DB, id int, newPassword string) error {
 	}
 
 	return nil
+}
+
+func GetTotalSalaries(db *sql.DB) (int, error) {
+	query := `SELECT SUM(salary) FROM User`
+
+	sum := 0
+	scanErr := db.QueryRow(query).Scan(&sum)
+	if scanErr != nil {
+		return 0, fmt.Errorf("Failed to sum the total salaries: %w\n", scanErr)
+	}
+
+	return sum, nil
 }
 
 func GetTotalSubscriberPaymentAmount(db *sql.DB) (int, error) {
