@@ -67,7 +67,35 @@ func GetTotalSalaries(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, sum)
 }
-func UpdateUser(ctx *gin.Context)
+
+func UpdateUser(ctx *gin.Context) {
+	data := dto.UpdateUser_Req{}
+
+	bindErr := ctx.ShouldBindJSON(&data)
+	if bindErr != nil {
+		ctx.String(http.StatusBadRequest, "Invalid data: %v\n", bindErr)
+		return
+	}
+
+	queryErr := db.UpdateUser(db.DB, db.User{
+		ID:      data.ID,
+		Email:   data.Email,
+		Name:    data.Name,
+		GymName: data.GymName,
+		Gender:  data.Gender,
+		Salary:  data.Salary,
+		Age:     data.Age,
+	})
+
+	if queryErr != nil {
+		common.Logger.Printf("Failed to update user: %v\n", queryErr)
+		ctx.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.Status(http.StatusOK)
+}
+
 func ChangeUserName(ctx *gin.Context)
 func DeleteUser(ctx *gin.Context)
 func DeleteUserById(ctx *gin.Context)

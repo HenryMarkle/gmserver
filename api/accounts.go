@@ -14,7 +14,7 @@ import (
 )
 
 /*
-* API handles here
+* API handlers here
  */
 
 func SignIn(ctx *gin.Context) {

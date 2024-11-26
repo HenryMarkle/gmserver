@@ -116,6 +116,17 @@ func UserExistsByEmail(db *sql.DB, email string) bool {
 	return exists
 }
 
+func UpdateUser(db *sql.DB, data User) error {
+	query := `UPDATE User SET email = ?, name = ?, gymName = ?, age = ?, startDate = ?, salary = ?, gender = ? WHERE id = ?`
+
+	_, execErr := db.Exec(query, data.Email, data.Name, data.GymName, data.Age, data.StartDate, data.Salary, data.Gender, data.ID)
+	if execErr != nil {
+		return fmt.Errorf("Failed to update user by ID (id: %d): %w\n", data.ID, execErr)
+	}
+
+	return nil
+}
+
 func ChangeUserPassword(db *sql.DB, id int, newPassword string) error {
 	query := `UPDATE User SET password = ? WHERE id = ?`
 
