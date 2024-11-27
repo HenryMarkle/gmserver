@@ -859,7 +859,7 @@ func GetAllEvents(db *sql.DB) ([]Event, error) {
 	return events, nil
 }
 
-func DidUserSeeEvent(db *sql.DB, userId, eventId int) (bool, error) {
+func DidUserSeeEvent(db *sql.DB, userId, eventId int64) (bool, error) {
 	query := `SELECT EXISTS(
     SELECT 1 FROM SeenEvent
     WHERE eventId = ? AND userId = ?
@@ -875,7 +875,7 @@ func DidUserSeeEvent(db *sql.DB, userId, eventId int) (bool, error) {
 	return seen, nil
 }
 
-func MarkEventAsSeen(db *sql.DB, userId, eventId int) error {
+func MarkEventAsSeen(db *sql.DB, userId, eventId int64) error {
 	query := `INSERT IGNORE INTO SeenEvent (eventId, userId) VALUES (?, ?)`
 
 	_, execErr := db.Exec(query, eventId, userId)
@@ -886,7 +886,7 @@ func MarkEventAsSeen(db *sql.DB, userId, eventId int) error {
 	return nil
 }
 
-func MarkAllEventsAsSeen(db *sql.DB, userId int) error {
+func MarkAllEventsAsSeen(db *sql.DB, userId int64) error {
 	unreadQuery := `SELECT E.id FROM Event AS E WHERE NOT EXISTS (
     SELECT 1 FROM SeenEvent AS S WHERE S.eventId = E.Id AND S.userId = ?
   )`
