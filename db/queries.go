@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/HenryMarkle/gmserver/common"
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 func Construct(db *sql.DB) error {
@@ -54,7 +54,7 @@ func AddAccount(
 	return nil
 }
 
-func GetUserByID(db *sql.DB, id int) (*User, error) {
+func GetUserByID(db *sql.DB, id int64) (*User, error) {
 	query := `SELECT email, name, password, session, lastLogin, age, salary, permission, gender, startDate FROM User WHERE id = ?`
 
 	row := db.QueryRow(query, id)
@@ -92,7 +92,26 @@ func GetUserBySession(db *sql.DB, session string) (*User, error) {
 	return &user, nil
 }
 
-func UserExistsByID(db *sql.DB, id int) bool {
+func GetUserByEmail(db *sql.DB, email string) (*User, error) {
+	query := `SELECT id, session, name, password, lastLogin, age, salary, permission, gender, startDate FROM User WHERE email = ?`
+
+	row := db.QueryRow(query, email)
+
+	user := User{Email: email}
+
+	scanErr := row.Scan(&user.ID, &user.Session, &user.Name, &user.Password, &user.Session, &user.LastLogin, &user.Age, &user.Salary, &user.Permission, &user.Gender, &user.StartDate)
+	if scanErr != nil {
+		if scanErr == sql.ErrNoRows {
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("Failed to get a user by session: %w\n", scanErr)
+	}
+
+	return &user, nil
+}
+
+func UserExistsByID(db *sql.DB, id int64) bool {
 	query := `SELECT EXISTS (
     SELECT 1 FROM User WHERE id = ?
   );`
@@ -127,7 +146,36 @@ func UpdateUser(db *sql.DB, data User) error {
 	return nil
 }
 
-func ChangeUserPassword(db *sql.DB, id int, newPassword string) error {
+func DeleteUserByID(db *sql.DB, id int64) error {
+	query := `DELETE FROM User WHERE id = ?`
+	_, execErr := db.Exec(query, id)
+	if execErr != nil {
+		return fmt.Errorf("Failed to delete a user by ID (id: %d): %w\n", id, execErr)
+	}
+
+	return nil
+}
+
+func CountUsers(db *sql.DB) (int, error) {
+	query := `SELECT COUNT(*) FROM User`
+	var count int
+	scanErr := db.QueryRow(query).Scan(&count)
+	if scanErr != nil {
+		return 0, fmt.Errorf("Failed to count users: %w\n", scanErr)
+	}
+	return count, nil
+}
+
+func MarkUserAsDeleted(db *sql.DB, id int64) error {
+	query := `UPDATE User SET deletedAt = CURRENT_TIMESTAMP WHERE id = ?`
+	_, execErr := db.Exec(query, id)
+	if execErr != nil {
+		return fmt.Errorf("Failed to mark a user by ID (id: %d): %w\n ", id, execErr)
+	}
+	return nil
+}
+
+func ChangeUserPassword(db *sql.DB, id int64, newPassword string) error {
 	query := `UPDATE User SET password = ? WHERE id = ?`
 
 	_, execErr := db.Exec(query, newPassword, id)
@@ -136,6 +184,45 @@ func ChangeUserPassword(db *sql.DB, id int, newPassword string) error {
 	}
 
 	return nil
+}
+
+func ChangeGymName(db *sql.DB, id int64, newGymName string) error {
+	query := `UPDATE User SET gymName = ? WHERE id = ?`
+	_, execErr := db.Exec(query, newGymName, id)
+	if execErr != nil {
+		return fmt.Errorf("Failed to update gym name of a user (id: %d): %w\n", id, execErr)
+	}
+
+	return nil
+}
+
+func GetAllUsers(db *sql.DB) ([]User, error) {
+	query := `SELECT id, email, name, gender, age, salary, startDate, permission FROM User WHERE deletedAt IS NULL`
+
+	rows, queryErr := db.Query(query)
+	if queryErr != nil {
+		return nil, fmt.Errorf("Failed to get all users: %w\n", queryErr)
+	}
+
+	defer rows.Close()
+
+	users := []User{}
+	counter := 0
+
+	for rows.Next() {
+		user := User{}
+		scanErr := rows.Scan(&user.ID, &user.Email, &user.Name, &user.Gender, &user.Age, &user.Salary, &user.StartDate, &user.Permission)
+
+		if scanErr != nil {
+			common.Logger.Printf("Failed to scan a user from rows at row (%d): %v\n", counter, scanErr)
+		} else {
+			users = append(users, user)
+		}
+
+		counter++
+	}
+
+	return users, nil
 }
 
 func GetTotalSalaries(db *sql.DB) (int, error) {
@@ -282,7 +369,7 @@ func GetAllSubscribers(db *sql.DB, limit int) ([]Subscriber, error) {
 	return subs, nil
 }
 
-func GetSubscriberByID(db *sql.DB, id int) (*Subscriber, error) {
+func GetSubscriberByID(db *sql.DB, id int64) (*Subscriber, error) {
 	query := `SELECT id, name, surname, age, gender, duration, daysLeft, bucketPrice, paymentAmount, startedAt, endsAt, createdAt, updatedAt, deletedAt FROM Subscriber WHERE id = ? WHERE deletedAt IS NULL`
 
 	sub := &Subscriber{}
@@ -1206,4 +1293,199 @@ func UpdateExercise(db *sql.DB, exercise Excercise) error {
 	}
 
 	return nil
+}
+
+// Does not include users or subscribers
+func GetAllComments(db *sql.DB, size, offset int) ([]SubscriberComment, error) {
+	query := `SELECT id, text, createdAt, updatedAt, senderId, subscriberId FROM SubscriberComment WHERE deletedAt IS NULL`
+	limitedQuery := `SELECT id, text, createdAt, updatedAt, senderId, subscriberId FROM SubscriberComment WHERE deletedAt IS NULL LIMIT ? OFFSET ?`
+
+	var (
+		rows     *sql.Rows
+		queryErr error
+	)
+
+	if size == 0 {
+		rows, queryErr = db.Query(query)
+	} else {
+		rows, queryErr = db.Query(limitedQuery, size, offset)
+	}
+
+	if queryErr != nil {
+		return nil, fmt.Errorf("Failed to get all, undeleted comments: %w\n", queryErr)
+	}
+
+	defer rows.Close()
+
+	comments := []SubscriberComment{}
+	counter := 0
+
+	for rows.Next() {
+		comment := SubscriberComment{}
+
+		scanErr := rows.Scan(&comment.ID, &comment.Text, &comment.CreatedAt, &comment.UpdatedAt, &comment.SenderID, &comment.SubscriberID)
+		if scanErr != nil {
+			common.Logger.Printf("Failed to scan a comment from rows at row (%d): %v\n", counter, scanErr)
+		} else {
+			comments = append(comments, comment)
+		}
+
+		counter++
+	}
+
+	return comments, nil
+}
+
+func GetAllCommentsIncludes(db *sql.DB, size, offset int, includeUsers, includeSubscribers bool) ([]SubscriberComment, error) {
+	query := `SELECT id, text, createdAt, updatedAt, senderId, subscriberId FROM SubscriberComment WHERE deletedAt IS NULL`
+	limitedQuery := `SELECT id, text, createdAt, updatedAt, senderId, subscriberId FROM SubscriberComment WHERE deletedAt IS NULL LIMIT ? OFFSET ?`
+
+	var (
+		rows     *sql.Rows
+		queryErr error
+	)
+
+	if size == 0 {
+		rows, queryErr = db.Query(query)
+	} else {
+		rows, queryErr = db.Query(limitedQuery, size, offset)
+	}
+
+	if queryErr != nil {
+		return nil, fmt.Errorf("Failed to get all, undeleted comments: %w\n", queryErr)
+	}
+
+	defer rows.Close()
+
+	comments := []SubscriberComment{}
+	counter := 0
+
+	for rows.Next() {
+		comment := SubscriberComment{}
+
+		scanErr := rows.Scan(&comment.ID, &comment.Text, &comment.CreatedAt, &comment.UpdatedAt, &comment.SenderID, &comment.SubscriberID)
+		if scanErr != nil {
+			common.Logger.Printf("Failed to scan a comment from rows at row (%d): %v\n", counter, scanErr)
+		} else {
+			comments = append(comments, comment)
+
+			if includeUsers {
+				user, userQueryErr := GetUserByID(db, int64(comment.SenderID))
+				if userQueryErr != nil {
+					common.Logger.Printf("Failed to get a user for a comment (relation) at row (%d): %v\n", counter, userQueryErr)
+				} else {
+					comment.Sender = user
+				}
+			}
+
+			if includeSubscribers {
+				sub, subQueryErr := GetSubscriberByID(db, comment.SubscriberID)
+				if subQueryErr != nil {
+					common.Logger.Printf("Failed to get a subscriber for a comment (relation) at row (%d): %v\n", counter, subQueryErr)
+				} else {
+					comment.Subscriber = sub
+				}
+			}
+		}
+
+		counter++
+	}
+
+	return comments, nil
+}
+
+func GetAllCommentsOfUserID(db *sql.DB, id int64, size, offset int) ([]SubscriberComment, error) {
+	query := `SELECT id, text, createdAt, updatedAt, senderId, subscriberId FROM SubscriberComment WHERE deletedAt IS NULL AND senderId = ?`
+	limitedQuery := `SELECT id, text, createdAt, updatedAt, senderId, subscriberId FROM SubscriberComment WHERE deletedAt IS NULL AND senderId = ? LIMIT ? OFFSET ?`
+
+	var (
+		rows     *sql.Rows
+		queryErr error
+	)
+
+	if size == 0 {
+		rows, queryErr = db.Query(query, id)
+	} else {
+		rows, queryErr = db.Query(limitedQuery, id, size, offset)
+	}
+
+	if queryErr != nil {
+		return nil, fmt.Errorf("Failed to get all, undeleted comments: %w\n", queryErr)
+	}
+
+	defer rows.Close()
+
+	comments := []SubscriberComment{}
+	counter := 0
+
+	for rows.Next() {
+		comment := SubscriberComment{}
+
+		scanErr := rows.Scan(&comment.ID, &comment.Text, &comment.CreatedAt, &comment.UpdatedAt, &comment.SenderID, &comment.SubscriberID)
+		if scanErr != nil {
+			common.Logger.Printf("Failed to scan a comment from rows at row (%d): %v\n", counter, scanErr)
+		} else {
+			comments = append(comments, comment)
+		}
+
+		counter++
+	}
+
+	return comments, nil
+}
+
+func GetAllCommentsOfSubscriberID(db *sql.DB, id int64, size, offset int) ([]SubscriberComment, error) {
+	query := `SELECT id, text, createdAt, updatedAt, senderId, subscriberId FROM SubscriberComment WHERE deletedAt IS NULL AND subscriberId = ?`
+	limitedQuery := `SELECT id, text, createdAt, updatedAt, senderId, subscriberId FROM SubscriberComment WHERE deletedAt IS NULL AND subscriberId = ? LIMIT ? OFFSET ?`
+
+	var (
+		rows     *sql.Rows
+		queryErr error
+	)
+
+	if size == 0 {
+		rows, queryErr = db.Query(query, id)
+	} else {
+		rows, queryErr = db.Query(limitedQuery, id, size, offset)
+	}
+
+	if queryErr != nil {
+		return nil, fmt.Errorf("Failed to get all, undeleted comments: %w\n", queryErr)
+	}
+
+	defer rows.Close()
+
+	comments := []SubscriberComment{}
+	counter := 0
+
+	for rows.Next() {
+		comment := SubscriberComment{}
+
+		scanErr := rows.Scan(&comment.ID, &comment.Text, &comment.CreatedAt, &comment.UpdatedAt, &comment.SenderID, &comment.SubscriberID)
+		if scanErr != nil {
+			common.Logger.Printf("Failed to scan a comment from rows at row (%d): %v\n", counter, scanErr)
+		} else {
+			comments = append(comments, comment)
+		}
+
+		counter++
+	}
+
+	return comments, nil
+}
+
+func CreateComment(db *sql.DB, comment SubscriberComment) (int64, error) {
+	query := `INSERT INTO SubscriberComment (text, senderId, subscriberId) VALUES (?, ?)`
+	res, execErr := db.Exec(query, comment.Text, comment.SenderID, comment.SubscriberID)
+
+	if execErr != nil {
+		return 0, fmt.Errorf("Failed to create a comment: %w\n", execErr)
+	}
+
+	id, lastInsertErr := res.LastInsertId()
+	if lastInsertErr != nil {
+		return 0, fmt.Errorf("Failed to retrieve last inserted ID: %w\n", lastInsertErr)
+	}
+
+	return id, nil
 }

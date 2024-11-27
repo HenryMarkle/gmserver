@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/HenryMarkle/gmserver/common"
 	"github.com/HenryMarkle/gmserver/db"
@@ -98,16 +99,191 @@ func UpdateUser(ctx *gin.Context) {
 
 func ChangeUserName(ctx *gin.Context)
 func DeleteUser(ctx *gin.Context)
-func DeleteUserById(ctx *gin.Context)
-func CountUsers(ctx *gin.Context)
-func GetUserByEmail(ctx *gin.Context)
+func DeleteUserById(ctx *gin.Context) {
+	idStr := ctx.Query("id")
+	permanentStr := ctx.Query("permanent")
+
+	permanent, permaConvErr := strconv.ParseBool(permanentStr)
+	id, idConvErr := strconv.ParseInt(idStr, 10, 64)
+
+	if permaConvErr != nil && idConvErr != nil {
+		ctx.String(http.StatusBadRequest, "Invalid URL query parameters: id, permanent")
+		return
+	}
+
+	if permaConvErr != nil {
+		ctx.String(http.StatusBadRequest, "Invalid URL query parameters: permanent")
+		return
+	}
+
+	if idConvErr != nil {
+		ctx.String(http.StatusBadRequest, "Invalid URL query parameters: id")
+		return
+	}
+
+	var queryErr error
+
+	if permanent {
+		queryErr = db.DeleteUserByID(db.DB, id)
+	} else {
+		queryErr = db.MarkUserAsDeleted(db.DB, id)
+	}
+
+	if queryErr != nil {
+		common.Logger.Printf("Failed to delete a user: %v\n", queryErr)
+		ctx.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.Status(http.StatusOK)
+}
+
+func CountUsers(ctx *gin.Context) {
+	count, queryErr := db.CountUsers(db.DB)
+
+	if queryErr != nil {
+		common.Logger.Printf("Failed to count users: %v\n", queryErr)
+		ctx.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, count)
+}
+
+func GetUserByEmail(ctx *gin.Context) {
+	email := ctx.Query("email")
+
+	if email == "" {
+		ctx.String(http.StatusBadRequest, "Invalid URL parameter: email")
+		return
+	}
+
+	user, queryErr := db.GetUserByEmail(db.DB, email)
+	if queryErr != nil {
+		common.Logger.Printf("Failed to get a user by email: %v\n", queryErr)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, dto.User_Res{
+		ID:         user.ID,
+		Email:      user.Email,
+		Name:       user.Name,
+		GymName:    user.GymName,
+		Gender:     user.Gender,
+		LastLogin:  user.LastLogin,
+		Permission: user.Permission,
+		Salary:     user.Salary,
+		Age:        user.Age,
+	})
+}
 func GetUsersLeftChartData(ctx *gin.Context)
 func GetUsersCreatedChartData(ctx *gin.Context)
-func GetUserById(ctx *gin.Context)
-func GetGymName(ctx *gin.Context)
-func GetCurrentUser(ctx *gin.Context)
-func ChangeGymName(ctx *gin.Context)
-func GetAllUsers(ctx *gin.Context)
+func GetUserById(ctx *gin.Context) {
+	idStr := ctx.Query("id")
+
+	if idStr == "" {
+		ctx.String(http.StatusBadRequest, "Required query parameter: id")
+		return
+	}
+
+	id, idConvErr := strconv.ParseInt(idStr, 10, 64)
+	if idConvErr != nil {
+		ctx.String(http.StatusBadRequest, "Invalid query parameter: id")
+		return
+	}
+
+	user, queryErr := db.GetUserByID(db.DB, id)
+	if queryErr != nil {
+		common.Logger.Printf("Failed to get user by id: %v\n", queryErr)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, dto.User_Res{
+		ID:         user.ID,
+		Email:      user.Email,
+		Name:       user.Name,
+		GymName:    user.GymName,
+		Gender:     user.Gender,
+		LastLogin:  user.LastLogin,
+		Permission: user.Permission,
+		Salary:     user.Salary,
+		Age:        user.Age,
+	})
+}
+
+func GetGymName(ctx *gin.Context) {
+	user, _ := ctx.Get("user")
+	userPtr := user.(*db.User)
+
+	ctx.String(http.StatusOK, userPtr.GymName)
+}
+
+func GetCurrentUser(ctx *gin.Context) {
+	user, _ := ctx.Get("user")
+	userPtr := user.(*db.User)
+
+	ctx.JSON(http.StatusOK, dto.User_Res{
+		ID:         userPtr.ID,
+		Email:      userPtr.Email,
+		Name:       userPtr.Name,
+		GymName:    userPtr.GymName,
+		Gender:     userPtr.Gender,
+		LastLogin:  userPtr.LastLogin,
+		Permission: userPtr.Permission,
+		Salary:     userPtr.Salary,
+		Age:        userPtr.Age,
+	})
+}
+
+func ChangeGymName(ctx *gin.Context) {
+	user, _ := ctx.Get("user")
+	userPtr := user.(*db.User)
+
+	var newGymName string
+
+	bindErr := ctx.ShouldBindJSON(&newGymName)
+	if bindErr != nil {
+		ctx.String(http.StatusBadRequest, "Invalid data: %v\n", bindErr)
+		return
+	}
+
+	queryErr := db.ChangeGymName(db.DB, userPtr.ID, newGymName)
+	if queryErr != nil {
+		common.Logger.Printf("Failed to update the gym name of a user: %v\n", queryErr)
+		ctx.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.Status(http.StatusOK)
+}
+
+func GetAllUsers(ctx *gin.Context) {
+	users, queryErr := db.GetAllUsers(db.DB)
+	if queryErr != nil {
+		common.Logger.Printf("Failed to get all users: %v\n", queryErr)
+		ctx.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	dtoUsers := make([]dto.User_Res, 0, len(users))
+	for _, user := range users {
+		dtoUsers = append(dtoUsers, dto.User_Res{
+			ID:         user.ID,
+			Email:      user.Email,
+			Name:       user.Name,
+			GymName:    user.GymName,
+			Gender:     user.Gender,
+			LastLogin:  user.LastLogin,
+			Permission: user.Permission,
+			Salary:     user.Salary,
+			Age:        user.Age,
+		})
+	}
+
+	ctx.JSON(http.StatusOK, dtoUsers)
+}
 func GetAllAnnouncments(ctx *gin.Context)
 func CreateAnnouncement(ctx *gin.Context)
 func MarkAsRead(ctx *gin.Context)

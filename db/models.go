@@ -13,7 +13,7 @@ type User struct {
 	Permission int
 	Salary     int
 	Age        int
-	ID         int
+	ID         int64
 }
 
 type LandingPageData struct {
@@ -75,9 +75,9 @@ type SubscriberComment struct {
 	CreatedAt    string
 	UpdatedAt    string
 	DeletedAt    string
-	ID           int
-	SenderID     int
-	SubscriberID int
+	ID           int64
+	SenderID     int64
+	SubscriberID int64
 }
 
 type Message struct {
@@ -89,9 +89,9 @@ type Message struct {
 type MessageRead struct {
 	User      *User
 	Message   *Message
-	ID        int
-	UserID    int
-	MessageID int
+	ID        int64
+	UserID    int64
+	MessageID int64
 	Read      bool
 }
 
