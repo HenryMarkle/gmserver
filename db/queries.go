@@ -1489,3 +1489,14 @@ func CreateComment(db *sql.DB, comment SubscriberComment) (int64, error) {
 
 	return id, nil
 }
+
+func DeleteCommentByID(db *sql.DB, id int64) error {
+	query := `DELETE FROM SubscriberComment WHERE id = ?`
+
+	_, execErr := db.Exec(query, id)
+	if execErr != nil {
+		return fmt.Errorf("Failed to delete a comment by ID (id: %d): %w\n", id, execErr)
+	}
+
+	return nil
+}

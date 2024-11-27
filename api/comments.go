@@ -91,4 +91,27 @@ func CreateComment(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, id)
 }
-func DeleteComment(ctx *gin.Context) {}
+
+func DeleteComment(ctx *gin.Context) {
+	idStr := ctx.Query("id")
+
+	if idStr == "" {
+		ctx.String(http.StatusBadRequest, "Required query parameter: id")
+	}
+
+	id, convErr := strconv.ParseInt(idStr, 10, 64)
+
+	if convErr != nil {
+		ctx.String(http.StatusBadRequest, "Invalid query parameter: id")
+		return
+	}
+
+	queryErr := db.DeleteCommentByID(db.DB, id)
+	if queryErr != nil {
+		common.Logger.Printf("Failed to delete comment: %v\n", queryErr)
+		ctx.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.Status(http.StatusOK)
+}
