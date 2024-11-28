@@ -959,7 +959,7 @@ func GetAllExercises(db *sql.DB) ([]Excercise, error) {
 	return exercises, nil
 }
 
-func GetAllExercisesOfSection(db *sql.DB, sectionId int) ([]Excercise, error) {
+func GetAllExercisesOfSection(db *sql.DB, sectionId int64) ([]Excercise, error) {
 	query := `SELECT id, name, description FROM Excercise WHERE categoryId = ?`
 
 	rows, queryErr := db.Query(query, sectionId)
@@ -1102,7 +1102,7 @@ func GetAllExerciseSectionsWithExercises(db *sql.DB) ([]ExcerciseCategory, error
 	return sections, nil
 }
 
-func GetExerciseSectionByIDWithExercises(db *sql.DB, id int) (*ExcerciseCategory, error) {
+func GetExerciseSectionByIDWithExercises(db *sql.DB, id int64) (*ExcerciseCategory, error) {
 	query := `SELECT name FROM ExcerciseCategory WHERE id = ?`
 
 	row := db.QueryRow(query, id)
@@ -1192,7 +1192,7 @@ func UpdateExerciseSectionByID(db *sql.DB, data ExcerciseCategory) error {
 	return nil
 }
 
-func DeleteExerciseSectionByIDWithExercises(db *sql.DB, id int) error {
+func DeleteExerciseSectionByIDWithExercises(db *sql.DB, id int64) error {
 	deleteSectionQuery := `DELETE FROM ExcerciseCategory WHERE id = ?`
 	deleteExercisesQuery := `DELETE FROM Excercise WHERE categoryId = ?`
 
@@ -1262,7 +1262,7 @@ func CreateExercise(db *sql.DB, exercise Excercise) (int64, error) {
 	return id, nil
 }
 
-func DeleteExerciseByID(db *sql.DB, id int) error {
+func DeleteExerciseByID(db *sql.DB, id int64) error {
 	query := `DELETE FROM Excercise WHERE id = ?`
 
 	_, execErr := db.Exec(query, id)

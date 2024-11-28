@@ -118,15 +118,15 @@ type Product struct {
 type ExcerciseCategory struct {
 	Name       string
 	Excercises []Excercise
-	ID         int
+	ID         int64
 }
 
 type Excercise struct {
 	Category    *ExcerciseCategory
 	Name        string
 	Description string
-	ID          int
-	CategoryID  int
+	ID          int64
+	CategoryID  int64
 }
 
 type Trainer struct {
