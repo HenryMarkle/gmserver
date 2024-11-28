@@ -284,6 +284,63 @@ func GetAllUsers(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, dtoUsers)
 }
-func GetAllAnnouncments(ctx *gin.Context)
-func CreateAnnouncement(ctx *gin.Context)
-func MarkAsRead(ctx *gin.Context)
+
+// All announcement for a user
+func GetAllAnnouncments(ctx *gin.Context) {
+	announcements, queryErr := db.GetAllAnnouncements(db.DB)
+	if queryErr != nil {
+		common.Logger.Printf("Failed to get accouncements: %v\n", queryErr)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, announcements)
+}
+
+func CreateAnnouncement(ctx *gin.Context) {
+	data := dto.CreateAnnouncement_Req{}
+
+	bindErr := ctx.ShouldBindJSON(&data)
+	if bindErr != nil {
+		ctx.String(http.StatusBadRequest, "Invalid data: %v", bindErr)
+		return
+	}
+
+	var (
+		id       int64
+		queryErr error
+	)
+
+	if data.All {
+		id, queryErr = db.CreateAnnouncementToAll(db.DB, data.Text)
+	} else {
+		id, queryErr = db.CreateAnnouncementToUserIDs(db.DB, data.Text, data.ToUsers...)
+	}
+
+	if queryErr != nil {
+		common.Logger.Printf("Failed to create announcement (to all: %t): %v\n", data.All, queryErr)
+		ctx.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, id)
+}
+
+func MarkAsRead(ctx *gin.Context) {
+	data := dto.MarkMessageAsRead_Req{}
+
+	bindErr := ctx.ShouldBindJSON(&data)
+	if bindErr != nil {
+		ctx.String(http.StatusBadRequest, "Invalid data: %v", bindErr)
+		return
+	}
+
+	queryErr := db.MarkMessageAsRead(db.DB, data.UserID, data.MessageID)
+	if queryErr != nil {
+		common.Logger.Printf("Failed to mark a message as read: %v\n", queryErr)
+		ctx.Status(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.Status(http.StatusOK)
+}

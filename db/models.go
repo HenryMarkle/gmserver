@@ -81,9 +81,10 @@ type SubscriberComment struct {
 }
 
 type Message struct {
-	Text string
-	Sent string
-	ID   int
+	Readers *MessageRead
+	Text    string
+	Sent    string
+	ID      int64
 }
 
 type MessageRead struct {
@@ -135,7 +136,7 @@ type Trainer struct {
 	Instigram   string
 	Facebook    string
 	Twitter     string
-	ID          int
+	ID          int64
 }
 
 type Plan struct {

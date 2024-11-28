@@ -23,3 +23,14 @@ type User_Res struct {
 	Age        int    `json:"age"`
 	ID         int64  `json:"id"`
 }
+
+type CreateAnnouncement_Req struct {
+	Text    string  `json:"text"`
+	ToUsers []int64 `json:"toUsers"`
+	All     bool    `json:"all"`
+}
+
+type MarkMessageAsRead_Req struct {
+	MessageID int64 `json:"messageId"`
+	UserID    int64 `json:"userId"`
+}

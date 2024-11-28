@@ -1500,3 +1500,271 @@ func DeleteCommentByID(db *sql.DB, id int64) error {
 
 	return nil
 }
+
+func GetAllAnnouncements(db *sql.DB) ([]Message, error) {
+	query := `SELECT M.id, M.text, M.sent FROM Message AS M`
+
+	rows, queryErr := db.Query(query)
+	if queryErr != nil {
+		if queryErr == sql.ErrNoRows {
+			return []Message{}, nil
+		}
+		return nil, fmt.Errorf("Failed to get all messages: %w\n", queryErr)
+	}
+
+	defer rows.Close()
+
+	messages := make([]Message, 0, 1)
+	counter := 0
+
+	for rows.Next() {
+		message := Message{}
+
+		scanErr := rows.Scan(&message.ID, &message.Text, &message.Sent)
+		if scanErr != nil {
+			common.Logger.Printf("Failed to scan a message from rows at a row (%d): %v\n", counter, scanErr)
+		} else {
+			messages = append(messages, message)
+		}
+
+		counter++
+	}
+
+	return messages, nil
+}
+
+func CreateAnnouncementToAll(db *sql.DB, text string) (int64, error) {
+	userQuery := `SELECT id FROM User WHERE deletedAt IS NULL`
+	annQuery := `INSERT INTO Message (text, sent) VALUES (?, CURRENT_TIMESTAMP)`
+	readQuery := `INSERT INTO MessageRead (userId, messageId, read) VALUES (?, ?, 0)`
+
+	tx, txErr := db.Begin()
+	if txErr != nil {
+		return 0, fmt.Errorf("Failed to create an announcement to all (failed transaction): %w\n", txErr)
+	}
+
+	res, annErr := tx.Exec(annQuery, text)
+	if annErr != nil {
+		rollErr := tx.Rollback()
+		if rollErr != nil {
+			return 0, fmt.Errorf("Failed to rollback on transaction at announcement creation: %w\n", rollErr)
+		}
+
+		return 0, fmt.Errorf("Failed to create announcement: %w\n", annErr)
+	}
+
+	insertedId, idErr := res.LastInsertId()
+	if idErr != nil {
+		rollErr := tx.Rollback()
+		if rollErr != nil {
+			return 0, fmt.Errorf("Failed to rollback on transaction at announcement creation id retrieval: %w\n", rollErr)
+		}
+
+		return 0, fmt.Errorf("Failed to retrieve created announcement ID: %w\n", idErr)
+	}
+
+	userRows, userQueryErr := tx.Query(userQuery)
+	if userQueryErr != nil {
+		rollErr := tx.Rollback()
+		if rollErr != nil {
+			return 0, fmt.Errorf("Failed to rollback on transaction at user ids fetching: %w\n", rollErr)
+		}
+
+		return 0, fmt.Errorf("Failed to get user IDs: %w\n", userQueryErr)
+	}
+
+	defer userRows.Close()
+
+	counter := 0
+
+	for userRows.Next() {
+		var id int64
+
+		idScanErr := userRows.Scan(&id)
+		if idScanErr != nil {
+			common.Logger.Printf("Failed to scan user ID from rows at row (%d): %v\n", counter, idScanErr)
+		} else {
+			_, execErr := tx.Exec(readQuery, id, insertedId)
+			if execErr != nil {
+				rollErr := tx.Rollback()
+				if rollErr != nil {
+					return 0, fmt.Errorf("Failed to rollback on transaction at message read creation: %w\n", rollErr)
+				}
+
+				return 0, fmt.Errorf("Failed to create message read status for all users at user ID (id: %d): %w\n", id, execErr)
+			}
+		}
+
+		counter++
+	}
+
+	commitErr := tx.Commit()
+	if commitErr != nil {
+		rollErr := tx.Rollback()
+		if rollErr != nil {
+			return 0, fmt.Errorf("Failed to rollback on transaction at committing transaction: %w\n", rollErr)
+		}
+		return 0, fmt.Errorf("Failed to create announcements (failed to commit transaction): %w\n", commitErr)
+	}
+
+	return insertedId, nil
+}
+
+func CreateAnnouncementToUserIDs(db *sql.DB, text string, ids ...int64) (int64, error) {
+	annQuery := `INSERT INTO Message (text, sent) VALUES (?, CURRENT_TIMESTAMP)`
+	readQuery := `INSERT INTO MessageRead (userId, messageId, read) VALUES (?, ?, 0)`
+
+	tx, txErr := db.Begin()
+	if txErr != nil {
+		return 0, fmt.Errorf("Failed to create an announcement to all (failed transaction): %w\n", txErr)
+	}
+
+	res, annErr := tx.Exec(annQuery, text)
+	if annErr != nil {
+		rollErr := tx.Rollback()
+		if rollErr != nil {
+			return 0, fmt.Errorf("Failed to rollback on transaction at announcement creation: %w\n", rollErr)
+		}
+
+		return 0, fmt.Errorf("Failed to create announcement: %w\n", annErr)
+	}
+
+	insertedId, idErr := res.LastInsertId()
+	if idErr != nil {
+		rollErr := tx.Rollback()
+		if rollErr != nil {
+			return 0, fmt.Errorf("Failed to rollback on transaction at announcement creation id retrieval: %w\n", rollErr)
+		}
+
+		return 0, fmt.Errorf("Failed to retrieve created announcement ID: %w\n", idErr)
+	}
+
+	counter := 0
+
+	for _, id := range ids {
+		_, execErr := tx.Exec(readQuery, id, insertedId)
+		if execErr != nil {
+			rollErr := tx.Rollback()
+			if rollErr != nil {
+				return 0, fmt.Errorf("Failed to rollback on transaction at message read creation: %w\n", rollErr)
+			}
+
+			return 0, fmt.Errorf("Failed to create message read status for all users at user ID (id: %d): %w\n", id, execErr)
+		}
+
+		counter++
+	}
+
+	commitErr := tx.Commit()
+	if commitErr != nil {
+		rollErr := tx.Rollback()
+		if rollErr != nil {
+			return 0, fmt.Errorf("Failed to rollback on transaction at committing transaction: %w\n", rollErr)
+		}
+		return 0, fmt.Errorf("Failed to create announcements (failed to commit transaction): %w\n", commitErr)
+	}
+
+	return insertedId, nil
+}
+
+func MarkMessageAsRead(db *sql.DB, userId, messageId int64) error {
+	query := `UPDATE MessageRead SET read = 1 WHERE userId = ? AND messageId = ?`
+
+	_, execErr := db.Exec(query, userId, messageId)
+	if execErr != nil {
+		return fmt.Errorf("Failed to mark a message as read: %w\n", execErr)
+	}
+
+	return nil
+}
+
+func GetAllTrainers(db *sql.DB) ([]Trainer, error) {
+	query := `SELECT id, name, job, description, intsigram, facebook, twitter FROM Trainer`
+
+	rows, queryErr := db.Query(query)
+	if queryErr != nil {
+		if queryErr == sql.ErrNoRows {
+			return []Trainer{}, nil
+		}
+		return nil, fmt.Errorf("Failed to get all trainers: %W\n", queryErr)
+	}
+
+	defer rows.Close()
+
+	trainers := []Trainer{}
+	counter := 0
+
+	for rows.Next() {
+		trainer := Trainer{}
+
+		scanErr := rows.Scan(&trainer.ID, &trainer.Name, &trainer.Job, &trainer.Description, &trainer.Instigram, &trainer.Facebook, &trainer.Twitter)
+		if scanErr != nil {
+			common.Logger.Printf("Failed to scan a trainer from rows at row (%d): %v\n", counter, scanErr)
+		} else {
+			trainers = append(trainers, trainer)
+		}
+
+		counter++
+	}
+
+	return trainers, nil
+}
+
+func CreateTrainer(db *sql.DB, data Trainer) (int64, error) {
+	query := `INSERT INTO Trainer (name, job, description, instigram, facebook, twitter) VALUES (?, ?, ?, ?, ?)`
+
+	tx, txErr := db.Begin()
+	if txErr != nil {
+		return 0, fmt.Errorf("Failed to create a trainer (failed to begin transaction): %w\n", txErr)
+	}
+
+	res, execErr := tx.Exec(query, data.Name, data.Job, data.Description, data.Instigram, data.Facebook, data.Twitter)
+	if execErr != nil {
+		rollErr := tx.Rollback()
+		if rollErr != nil {
+			return 0, fmt.Errorf("Failed to create a trainer: (Failed to rollback on transaction): %w\n", rollErr)
+		}
+
+		return 0, fmt.Errorf("Failed to create a trainer: %w\n", execErr)
+	}
+
+	id, idErr := res.LastInsertId()
+	if idErr != nil {
+		rollErr := tx.Rollback()
+		if rollErr != nil {
+			return 0, fmt.Errorf("Failed to create a trainer: (Failed to rollback on transaction): %w\n", rollErr)
+		}
+
+		return 0, fmt.Errorf("Failed to retrieve created trainer ID: %w\n", idErr)
+	}
+	commitErr := tx.Commit()
+	if commitErr != nil {
+		rollErr := tx.Rollback()
+		if rollErr != nil {
+			return 0, fmt.Errorf("Failed to rollback on transaction at committing transaction: %w\n", rollErr)
+		}
+		return 0, fmt.Errorf("Failed to create a trainer (failed to commit transaction): %w\n", commitErr)
+	}
+	return id, nil
+}
+
+func UpdateTrainer(db *sql.DB, data Trainer) error {
+	query := `UPDATE Trainer SET name = ?, job = ?, description = ?, instigram = ?, facebook = ?, twitter = ? WHERE id = ?`
+
+	_, execErr := db.Exec(query, data.Name, data.Job, data.Description, data.Instigram, data.Facebook, data.Twitter, data.ID)
+	if execErr != nil {
+		return fmt.Errorf("Failed to update a trainer (id: %d): %w\n", data.ID, execErr)
+	}
+
+	return nil
+}
+
+func DeleteTrainerByID(db *sql.DB, id int64) error {
+	query := `DELETE FROM Trainer WHERE id = ?`
+	_, execErr := db.Exec(query, id)
+	if execErr != nil {
+		return fmt.Errorf("Failed to delete a trainer by ID (id: %d): %w\n", id, execErr)
+	}
+
+	return nil
+}
