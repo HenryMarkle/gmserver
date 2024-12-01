@@ -278,12 +278,12 @@ func GetAllSubscribersEndingBefore(db *sql.DB, time string) (int, error) {
 }
 
 // / Time string must be of format '2024-11-21 12:00:00'
-func GetAllExpiredSubscribers(db *sql.DB, time string) (int, error) {
-	query := `SELECT COUNT(endsAt) FROM Subscriber WHERE endsAt > ?`
+func GetAllExpiredSubscribers(db *sql.DB) (int, error) {
+	query := `SELECT COUNT(endsAt) FROM Subscriber WHERE endsAt > CURRENT_TIMESTAMP`
 
 	var number int
 
-	err := db.QueryRow(query, time).Scan(&number)
+	err := db.QueryRow(query).Scan(&number)
 	if err != nil {
 		return 0, fmt.Errorf("Failed to count expired subscibers: %w\n", err)
 	}
@@ -292,8 +292,7 @@ func GetAllExpiredSubscribers(db *sql.DB, time string) (int, error) {
 }
 
 func CreateSubscriber(db *sql.DB,
-	name, surname, startDate, endDate string,
-	age, gender, payment, bucketPrice int,
+	data Subscriber,
 ) error {
 	query := `
   INSERT INTO Subscriber 
@@ -301,7 +300,7 @@ func CreateSubscriber(db *sql.DB,
   VALUES 
   (?, ?, ?, ?, ?, ?, ?)`
 
-	_, err := db.Exec(query, name, surname, age, payment, startDate, endDate, bucketPrice)
+	_, err := db.Exec(query, data.Name, data.Surname, data.Age, data.PaymentAmount, data.StartedAt, data.EndsAt, data.BucketPrice)
 	if err != nil {
 		return fmt.Errorf("Failed to create subscriber: %w\n", err)
 	}
@@ -395,7 +394,7 @@ func GetSubscriberByIDWithDeleted(db *sql.DB, id int) (*Subscriber, error) {
 	return sub, nil
 }
 
-func DeleteSubscriberByID(db *sql.DB, id int, permanent bool) error {
+func DeleteSubscriberByID(db *sql.DB, id int64, permanent bool) error {
 	query := `DELETE FROM Subscriber WHERE id = ?`
 
 	if !permanent {
