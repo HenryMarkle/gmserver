@@ -99,7 +99,7 @@ type MessageRead struct {
 type ProductCategory struct {
 	Name     string
 	Products []Product
-	ID       int
+	ID       int64
 }
 
 type Product struct {
@@ -110,9 +110,9 @@ type Product struct {
 	CreatedAt   string
 	UpdatedAt   string
 	DeletedAt   string
-	ID          int
+	ID          int64
 	Price       float64
-	CategoryID  int
+	CategoryID  int64
 }
 
 type ExcerciseCategory struct {
@@ -146,7 +146,7 @@ type Plan struct {
 	CreatedAt   string
 	UpdatedAt   string
 	DeletedAt   string
-	ID          int
+	ID          int64
 	Price       float64
 }
 

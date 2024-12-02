@@ -520,7 +520,7 @@ func GetPlansWithDeleted(db *sql.DB) ([]Plan, error) {
 	return plans, nil
 }
 
-func GetPlanByID(db *sql.DB, id int) (*Plan, error) {
+func GetPlanByID(db *sql.DB, id int64) (*Plan, error) {
 	query := `SELECT title, description, price, duration, createdAt, updatedAt, deletedAt FROM Plan WHERE id = ?`
 
 	plan := &Plan{}
@@ -548,7 +548,7 @@ func CreatePlan(db *sql.DB, plan Plan) (int64, error) {
 	return id, nil
 }
 
-func DeletePlanByID(db *sql.DB, id int) error {
+func DeletePlanByID(db *sql.DB, id int64) error {
 	query := `DELETE FROM Plan WHERE id = ?`
 
 	_, err := db.Exec(query, id)
@@ -663,7 +663,7 @@ func GetProductsWithCategories(db *sql.DB) ([]Product, error) {
 	return products, nil
 }
 
-func GetProductByID(db *sql.DB, id int) (*Product, error) {
+func GetProductByID(db *sql.DB, id int64) (*Product, error) {
 	query := `SELECT P.id, P.name, P.description, P.price, P.marka, P.categoryId FROM Product AS P WHERE id = ?`
 
 	product := &Product{}
@@ -682,7 +682,7 @@ func GetProductByID(db *sql.DB, id int) (*Product, error) {
 }
 
 // Category comes with an empty array
-func GetProductWithCategoryByID(db *sql.DB, id int) (*Product, error) {
+func GetProductWithCategoryByID(db *sql.DB, id int64) (*Product, error) {
 	query := `SELECT P.id, P.name, P.description, P.price, P.marka, P.categoryId, C.id, C.name FROM Product AS P LEFT JOIN ProductCategory WHERE P.id = ?`
 
 	product := &Product{Category: &ProductCategory{}}
@@ -701,6 +701,194 @@ func GetProductWithCategoryByID(db *sql.DB, id int) (*Product, error) {
 	return product, nil
 }
 
+func CreateProduct(db *sql.DB, data Product) (int64, error) {
+	checkQuery := `SELECT EXISTS (SELECT 1 FROM ProductCategory WHERE id = ?)`
+	query := `INSERT INTO Product (name, description, marka, price, categoryId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+
+	var exists bool
+
+	checkScanErr := db.QueryRow(checkQuery, data.CategoryID).Scan(exists)
+	if checkScanErr != nil {
+		return 0, fmt.Errorf("Failed to check for product's CategoryID (%d): %w\n", data.CategoryID, checkScanErr)
+	}
+
+	if !exists {
+		return 0, fmt.Errorf("Product's CategoryID (%d) does not exist", data.CategoryID)
+	}
+
+	res, queryErr := db.Exec(query, data.Name, data.Description, data.Marka, data.Price, data.CategoryID)
+	if queryErr != nil {
+		return 0, fmt.Errorf("Failed to create a product: %w\n", queryErr)
+	}
+
+	// TODO: Might be a bad idea.
+	id, _ := res.LastInsertId()
+
+	return id, nil
+}
+
+func UpdateProduct(db *sql.DB, data Product) error {
+	checkQuery := `SELECT EXISTS (SELECT 1 FROM ProductCategory WHERE id = ?)`
+	query := `UPDATE Product SET name = ?, description = ?, marka = ?, price = ?, categoryId = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`
+
+	var exists bool
+
+	checkScanErr := db.QueryRow(checkQuery, data.CategoryID).Scan(exists)
+	if checkScanErr != nil {
+		return fmt.Errorf("Failed to check for product's CategoryID (%d): %w\n", data.CategoryID, checkScanErr)
+	}
+
+	if !exists {
+		return fmt.Errorf("Product's CategoryID (%d) does not exist", data.CategoryID)
+	}
+
+	_, queryErr := db.Exec(query, data.Name, data.Description, data.Marka, data.Price, data.CategoryID, data.ID)
+	if queryErr != nil {
+		return fmt.Errorf("Failed to update a product: %w\n", queryErr)
+	}
+
+	return nil
+}
+
+func DeleteProductByID(db *sql.DB, id int64) error {
+	query := `UPDATE Product SET deletedAt = CURRENT_TIMESTAMP WHERE id = ?`
+
+	_, queryErr := db.Exec(query, id)
+	if queryErr != nil {
+		return fmt.Errorf("Failed to delete a product by ID (id: %d): %w\n", id, queryErr)
+	}
+
+	return nil
+}
+
+func GetProductCategories(db *sql.DB) ([]ProductCategory, error) {
+	query := `SELECT id, name FROM ProductCategory`
+
+	rows, queryErr := db.Query(query)
+	if queryErr != nil {
+		return nil, fmt.Errorf("Failed to get product categories: %w\n", queryErr)
+	}
+
+	defer rows.Close()
+
+	categories := make([]ProductCategory, 0, 1)
+	counter := 0
+
+	for rows.Next() {
+		category := ProductCategory{}
+
+		scanErr := rows.Scan(&category.ID, &category.Name)
+		if scanErr != nil {
+			common.Logger.Printf("Failed to scan a product category from rows at row (%d): %v\n", counter, scanErr)
+		} else {
+			categories = append(categories, category)
+		}
+
+		counter++
+	}
+
+	return categories, nil
+}
+
+func GetProductsOfCategoryByID(db *sql.DB, id int64) ([]Product, error) {
+	query := `SELECT id, name, description, marka, price, categoryId, createdAt, updatedAt, deletedAt FROM Product WHERE categoryId = ?`
+
+	rows, queryErr := db.Query(query, id)
+	if queryErr != nil {
+		if queryErr == sql.ErrNoRows {
+			return []Product{}, nil
+		}
+
+		return nil, fmt.Errorf("Failed to get products of a category: %w\n", queryErr)
+	}
+
+	defer rows.Close()
+
+	products := make([]Product, 0, 1)
+	counter := 0
+
+	for rows.Next() {
+		product := Product{}
+
+		scanErr := rows.Scan(&product.ID, &product.Name, &product.Description, &product.Marka, &product.Price, &product.CategoryID, &product.CreatedAt, &product.UpdatedAt, &product.DeletedAt)
+		if scanErr != nil {
+			common.Logger.Printf("Failed to scan a product from rows at row (%d): %v\n", counter, scanErr)
+		} else {
+			products = append(products, product)
+		}
+
+		counter++
+	}
+
+	return products, nil
+}
+
+func GetProductCategoriesWithProducts(db *sql.DB) ([]ProductCategory, error) {
+	query := `SELECT id, name FROM ProductCategory`
+
+	rows, queryErr := db.Query(query)
+	if queryErr != nil {
+		if queryErr == sql.ErrNoRows {
+			return []ProductCategory{}, nil
+		}
+
+		return nil, fmt.Errorf("Failed to get product categories: %w\n", queryErr)
+	}
+
+	defer rows.Close()
+
+	categories := make([]ProductCategory, 0, 1)
+	counter := 0
+
+	for rows.Next() {
+		category := ProductCategory{}
+
+		scanErr := rows.Scan(&category.ID, &category.Name)
+		if scanErr != nil {
+			common.Logger.Printf("Failed to scan a product category from rows at row (%d): %v\n", counter, scanErr)
+		} else {
+			products, prodQueryErr := GetProductsOfCategoryByID(db, category.ID)
+			if prodQueryErr != nil {
+				common.Logger.Printf("Failed to get products of a category (cid: %d): %v\n", category.ID, prodQueryErr)
+			} else {
+				category.Products = products
+			}
+
+			categories = append(categories, category)
+		}
+
+		counter++
+	}
+
+	return categories, nil
+}
+
+func GetProductCategoryByID(db *sql.DB, id int64) (*ProductCategory, error) {
+	query := `SELECT id, name FROM ProductCategory WHERE id = ?`
+
+	category := ProductCategory{}
+
+	scanErr := db.QueryRow(query, id).Scan(&category.ID, &category.Name)
+	if scanErr != nil {
+		return nil, fmt.Errorf("Failed to scan category: %w\n", scanErr)
+	}
+
+	return &category, nil
+}
+
+func GetProductCategoryByName(db *sql.DB, name string) (*ProductCategory, error) {
+	query := `SELECT id, name FROM ProductCategory WHERE name = ?`
+
+	category := ProductCategory{}
+
+	scanErr := db.QueryRow(query, name).Scan(&category.ID, &category.Name)
+	if scanErr != nil {
+		return nil, fmt.Errorf("Failed to scan category: %w\n", scanErr)
+	}
+
+	return &category, nil
+}
+
 func GetLandingPageGeneralInfo(db *sql.DB) (*LandingPageGeneralData, error) {
 	query := `SELECT title, starterSentence, secondStarterSentence, plansParagraph FROM LandingPageData LIMIT 1`
 
@@ -713,6 +901,30 @@ func GetLandingPageGeneralInfo(db *sql.DB) (*LandingPageGeneralData, error) {
 	}
 
 	return info, nil
+}
+
+func CreateProductCategory(db *sql.DB, name string) (int64, error) {
+	query := `INSERT INTO ProductCategory (name) VALUES (?)`
+
+	res, queryErr := db.Exec(query, name)
+	if queryErr != nil {
+		return 0, fmt.Errorf("Failed to create a product category: %w\n", queryErr)
+	}
+
+	id, _ := res.LastInsertId()
+
+	return id, nil
+}
+
+func DeleteProductCategoryByID(db *sql.DB, id int64) error {
+	query := `DELETE FROM ProductCategory WHERE id = ?`
+
+	_, queryErr := db.Exec(query, id)
+	if queryErr != nil {
+		return fmt.Errorf("Failed to delete a product category by ID (id: %d): %w\n", id, queryErr)
+	}
+
+	return nil
 }
 
 func UpdateLandingPageGeneralInfo(db *sql.DB, info LandingPageGeneralData) error {
