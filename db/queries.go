@@ -889,6 +889,33 @@ func GetProductCategoryByName(db *sql.DB, name string) (*ProductCategory, error)
 	return &category, nil
 }
 
+func DeleteProductsOfCategoryByID(db *sql.DB, id int64) error {
+	query := `DELETE FROM Product WHERE categoryId = ?`
+
+	_, queryErr := db.Exec(query, id)
+	if queryErr != nil {
+		return fmt.Errorf("Failed to delete products of a category: %w", queryErr)
+	}
+
+	return nil
+}
+
+func ProductExistsUnderCategory(db *sql.DB, productId, categoryId int64) (bool, error) {
+	query := `SELECT 1 FROM Product WHERE id = ? AND categoryId = ?`
+
+	var exists bool
+	scanErr := db.QueryRow(query, productId, categoryId).Scan(exists)
+	if scanErr != nil {
+		if scanErr == sql.ErrNoRows {
+			return false, nil
+		}
+
+		return false, fmt.Errorf("Failed to scan: %w", scanErr)
+	}
+
+	return exists, nil
+}
+
 func GetLandingPageGeneralInfo(db *sql.DB) (*LandingPageGeneralData, error) {
 	query := `SELECT title, starterSentence, secondStarterSentence, plansParagraph FROM LandingPageData LIMIT 1`
 
@@ -1071,7 +1098,7 @@ func GetAllEvents(db *sql.DB) ([]Event, error) {
 }
 
 func DidUserSeeEvent(db *sql.DB, userId, eventId int64) (bool, error) {
-	query := `SELECT EXISTS(
+	query := `SELECT 1 WHERE EXISTS(
     SELECT 1 FROM SeenEvent
     WHERE eventId = ? AND userId = ?
   );`

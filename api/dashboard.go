@@ -430,8 +430,72 @@ func DeleteProductCategoryByName(ctx *gin.Context) {
 		return
 	}
 }
-func MoveProductToCategory(ctx *gin.Context)
-func DeleteProductsOfCategory(ctx *gin.Context)
-func ProductExistsUnderCategory(ctx *gin.Context)
-func GetContacts(ctx *gin.Context)
-func UpdateContacts(ctx *gin.Context)
+
+func MoveProductToCategory(ctx *gin.Context) {
+}
+
+func DeleteProductsOfCategory(ctx *gin.Context) {
+	params := NonEmptyQueryInt64OrAbort(ctx, "id")
+	if params == nil {
+		return
+	}
+
+	id := params[0]
+
+	queryErr := db.DeleteProductsOfCategoryByID(db.DB, id)
+	if queryErr != nil {
+		common.Logger.Printf("Failed to delete products of category (id: %d): %v\n", id, queryErr)
+		ctx.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.Status(http.StatusOK)
+}
+
+func ProductExistsUnderCategory(ctx *gin.Context) {
+	params := NonEmptyQueryInt64OrAbort(ctx, "productId", "categoryId")
+	if params == nil {
+		return
+	}
+
+	productId, categoryId := params[0], params[1]
+
+	exists, queryErr := db.ProductExistsUnderCategory(db.DB, productId, categoryId)
+	if queryErr != nil {
+		common.Logger.Printf("Failed to check if a product exists under a category: %v\n", queryErr)
+		ctx.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, exists)
+}
+
+func GetContacts(ctx *gin.Context) {
+	contacts, queryErr := db.GetContacts(db.DB)
+	if queryErr != nil {
+		common.Logger.Printf("Failed to get contacts: %v\n", queryErr)
+		ctx.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, contacts)
+}
+
+func UpdateContacts(ctx *gin.Context) {
+	contacts := db.Contacts{}
+
+	bindErr := ctx.ShouldBindJSON(contacts)
+	if bindErr != nil {
+		ctx.String(http.StatusBadRequest, "Invalid data: %v", bindErr)
+		return
+	}
+
+	queryErr := db.UpdateContacts(db.DB, contacts)
+	if queryErr != nil {
+		common.Logger.Printf("Failed to update contacts: %v\n", queryErr)
+		ctx.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.Status(http.StatusOK)
+}
