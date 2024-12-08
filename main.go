@@ -25,6 +25,28 @@ func main() {
 			auth.PATCH("/changepassword", api.ChangePassword)
 
 			{
+				_ = auth.Group("/comments")
+			}
+			{
+				_ = auth.Group("/customers")
+			}
+			{
+				_ = auth.Group("/event")
+			}
+			{
+				_ = auth.Group("/users")
+			}
+			{
+				_ = auth.Group("/trainers")
+			}
+			{
+				_ = auth.Group("/exercises")
+			}
+			{
+				_ = auth.Group("/dashboard")
+			}
+
+			{
 				admin := auth.Group("/admin")
 				admin.Use(api.AdminOnly())
 			}
