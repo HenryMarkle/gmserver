@@ -25,10 +25,27 @@ func main() {
 			auth.PATCH("/changepassword", api.ChangePassword)
 
 			{
-				_ = auth.Group("/comments")
+				comments := auth.Group("/comments")
+
+				_ = comments.GET("/all", api.GetAllComments)
+				_ = comments.GET("/user/:id", api.GetAllCommentsOfManager)
+				_ = comments.GET("/sub/:id", api.GetAllCommentsOfSubscriber)
+				_ = comments.POST("/new", api.CreateComment)
+				_ = comments.DELETE("/:id", api.DeleteComment)
 			}
 			{
-				_ = auth.Group("/customers")
+				customers := auth.Group("/customers")
+
+				_ = customers.GET("/total-income", api.GetTotalIncome)
+				_ = customers.GET("/count-customers", api.CountCustomers)
+				_ = customers.PUT("/count-ending", api.CountCustomersEndingIn)
+				_ = customers.GET("/count-expired", api.CountCustomersExpiring)
+				_ = customers.POST("/new", api.CreateCustomer)
+				_ = customers.GET("/all", api.GetAllComments)
+				_ = customers.GET("/:id", api.GetCustomerByID)
+				_ = customers.DELETE("/:id", api.DeleteCustomerByID)
+				_ = customers.DELETE("delist/:id", api.MarkCustomerAsDeleted)
+				_ = customers.PATCH("/", api.UpdateCustomerByID)
 			}
 			{
 				_ = auth.Group("/event")
