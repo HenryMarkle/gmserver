@@ -44,7 +44,7 @@ func main() {
 				_ = customers.GET("/all", api.GetAllComments)
 				_ = customers.GET("/:id", api.GetCustomerByID)
 				_ = customers.DELETE("/:id", api.DeleteCustomerByID)
-				_ = customers.DELETE("delist/:id", api.MarkCustomerAsDeleted)
+				_ = customers.DELETE("/delist/:id", api.MarkCustomerAsDeleted)
 				_ = customers.PATCH("/", api.UpdateCustomerByID)
 			}
 			{
