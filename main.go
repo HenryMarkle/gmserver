@@ -70,18 +70,18 @@ func main() {
 				exercises := auth.Group("/exercises")
 
 				_ = exercises.GET("/all", api.GetAllExcercises)
-				_ = exercises.GET("/section/:name", api.GetSectionByName)
+				_ = exercises.GET("/section/byname/:name", api.GetSectionByName)
 				_ = exercises.POST("/section/new", api.CreateSection)
 				_ = exercises.DELETE("/section/:name", api.DeleteSection)
-				_ = exercises.PATCH("/section/:id", api.UpdateSectionById)
-				_ = exercises.DELETE("/section/:name", api.DeleteSectionWithExercises)
+				_ = exercises.PATCH("/section/byid/:id", api.UpdateSectionById)
+				_ = exercises.DELETE("/section/withexercises/:name", api.DeleteSectionWithExercises)
 				_ = exercises.GET("/count/section/:name", api.CountSectionExercises)
 				_ = exercises.GET("/withsection/all", api.GetAllSectionsWithExcercises)
 				_ = exercises.GET("/ofsection/:id", api.GetAllExcercisesOfSection)
 				_ = exercises.POST("/new", api.CreateExcercise)
 				_ = exercises.DELETE("/:name", api.DeleteExcercise)
 				_ = exercises.DELETE("/byid/:id", api.DeleteExcerciseById)
-				_ = exercises.PATCH("/:id", api.UpdateExcerciseById)
+				_ = exercises.PATCH("/byid/:id", api.UpdateExcerciseById)
 			}
 			{
 				dash := auth.Group("/dashboard")

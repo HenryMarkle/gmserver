@@ -97,8 +97,8 @@ func UpdateUser(ctx *gin.Context) {
 	ctx.Status(http.StatusOK)
 }
 
-func ChangeUserName(ctx *gin.Context)
-func DeleteUser(ctx *gin.Context)
+func ChangeUserName(ctx *gin.Context) {}
+func DeleteUser(ctx *gin.Context)     {}
 func DeleteUserById(ctx *gin.Context) {
 	idStr := ctx.Query("id")
 	permanentStr := ctx.Query("permanent")
@@ -177,8 +177,8 @@ func GetUserByEmail(ctx *gin.Context) {
 		Age:        user.Age,
 	})
 }
-func GetUsersLeftChartData(ctx *gin.Context)
-func GetUsersCreatedChartData(ctx *gin.Context)
+func GetUsersLeftChartData(ctx *gin.Context)    {}
+func GetUsersCreatedChartData(ctx *gin.Context) {}
 func GetUserById(ctx *gin.Context) {
 	idStr := ctx.Query("id")
 
