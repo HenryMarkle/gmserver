@@ -74,7 +74,7 @@ func GetUserByID(db *sql.DB, id int64) (*User, error) {
 }
 
 func GetUserBySession(db *sql.DB, session string) (*User, error) {
-	query := `SELECT id, email, name, password, lastLogin, age, salary, permission, gender, startDate FROM User WHERE session = ?`
+	query := `SELECT id, email, name, password, session, lastLogin, age, salary, permission, gender, startDate FROM User WHERE session = ?`
 
 	row := db.QueryRow(query, session)
 
@@ -237,10 +237,10 @@ func GetTotalSalaries(db *sql.DB) (int, error) {
 	return sum, nil
 }
 
-func GetTotalSubscriberPaymentAmount(db *sql.DB) (int, error) {
-	query := `SELECT SUM(paymentAmount) FROM Subscriber`
+func GetTotalSubscriberPaymentAmount(db *sql.DB) (float64, error) {
+	query := `SELECT COALESCE(SUM(paymentAmount), 0) as total FROM Subscriber`
 
-	var totalAmount int
+	var totalAmount float64
 
 	err := db.QueryRow(query).Scan(&totalAmount)
 	if err != nil {

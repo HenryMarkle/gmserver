@@ -20,7 +20,7 @@ import (
 func SignIn(ctx *gin.Context) {
 	signin := dto.Signin_Req{}
 	if bindErr := ctx.ShouldBindJSON(&signin); bindErr != nil {
-		ctx.String(400, "Invalid request data: %w", bindErr)
+		ctx.String(400, "Invalid request data: %v", bindErr)
 		return
 	}
 
