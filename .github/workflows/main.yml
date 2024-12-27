@@ -1,0 +1,40 @@
+name: Deploy Go Project to Remote Server
+
+on:
+  push:
+    branches:
+      - main  # You can adjust this to any branch you want to trigger the action from
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Checkout the repository
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    # Step 2: Set up SSH
+    - name: Set up SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H 139.162.178.167 >> ~/.ssh/known_hosts
+
+    # Step 3: SSH into the remote server, clone the latest commit, and run the Go project
+    - name: Deploy to Remote Server
+      run: |
+        ssh -o StrictHostKeyChecking=no root@139.162.178.167 << 'EOF'
+          # Navigate to the project directory (or clone if necessary)
+          cd /root/gms || git clone git@github.com:HenryMarkle/gmserver.git /root/gms
+          cd /root/gms
+
+          # Pull the latest commit
+          git pull origin main
+
+          # Build and run the Go project
+          go mod tidy
+          go build -o server
+          ./server
+        EOF
