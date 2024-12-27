@@ -40,7 +40,7 @@ func AddAccount(
 	scanErr := res.Scan(&dupId)
 
 	if scanErr != sql.ErrNoRows {
-		return fmt.Errorf("Could not add an account with the same email as another account: %w\n", scanErr)
+		return fmt.Errorf("could not add an account with the same email as another account: %w", scanErr)
 	}
 
 	createQuery := `INSERT INTO Users (name, email, password, permission, age, gender, salary) VALUES (?, ?, ?, 0, ?, ?)`
@@ -48,7 +48,7 @@ func AddAccount(
 	_, execErr := db.Exec(createQuery, account.Name, account.Email, account.Password, account.Age, account.Gender, account.Salary)
 
 	if execErr != nil {
-		return fmt.Errorf("Failed to create account: %w\n", execErr)
+		return fmt.Errorf("failed to create account: %w", execErr)
 	}
 
 	return nil
@@ -67,7 +67,7 @@ func GetUserByID(db *sql.DB, id int64) (*User, error) {
 			return nil, nil
 		}
 
-		return nil, fmt.Errorf("Failed to get a user by ID (id: %d): %w\n", id, scanErr)
+		return nil, fmt.Errorf("failed to get a user by ID (id: %d): %w", id, scanErr)
 	}
 
 	return &user, nil
@@ -86,7 +86,7 @@ func GetUserBySession(db *sql.DB, session string) (*User, error) {
 			return nil, nil
 		}
 
-		return nil, fmt.Errorf("Failed to get a user by session: %w\n", scanErr)
+		return nil, fmt.Errorf("failed to get a user by session: %w", scanErr)
 	}
 
 	return &user, nil
@@ -105,7 +105,7 @@ func GetUserByEmail(db *sql.DB, email string) (*User, error) {
 			return nil, nil
 		}
 
-		return nil, fmt.Errorf("Failed to get a user by session: %w\n", scanErr)
+		return nil, fmt.Errorf("failed to get a user by session: %w", scanErr)
 	}
 
 	return &user, nil
@@ -140,7 +140,7 @@ func UpdateUser(db *sql.DB, data User) error {
 
 	_, execErr := db.Exec(query, data.Email, data.Name, data.GymName, data.Age, data.StartDate, data.Salary, data.Gender, data.ID)
 	if execErr != nil {
-		return fmt.Errorf("Failed to update user by ID (id: %d): %w\n", data.ID, execErr)
+		return fmt.Errorf("failed to update user by ID (id: %d): %w", data.ID, execErr)
 	}
 
 	return nil
@@ -150,7 +150,7 @@ func DeleteUserByID(db *sql.DB, id int64) error {
 	query := `DELETE FROM User WHERE id = ?`
 	_, execErr := db.Exec(query, id)
 	if execErr != nil {
-		return fmt.Errorf("Failed to delete a user by ID (id: %d): %w\n", id, execErr)
+		return fmt.Errorf("failed to delete a user by ID (id: %d): %w", id, execErr)
 	}
 
 	return nil
@@ -161,7 +161,7 @@ func CountUsers(db *sql.DB) (int, error) {
 	var count int
 	scanErr := db.QueryRow(query).Scan(&count)
 	if scanErr != nil {
-		return 0, fmt.Errorf("Failed to count users: %w\n", scanErr)
+		return 0, fmt.Errorf("failed to count users: %w", scanErr)
 	}
 	return count, nil
 }
@@ -170,7 +170,7 @@ func MarkUserAsDeleted(db *sql.DB, id int64) error {
 	query := `UPDATE User SET deletedAt = CURRENT_TIMESTAMP WHERE id = ?`
 	_, execErr := db.Exec(query, id)
 	if execErr != nil {
-		return fmt.Errorf("Failed to mark a user by ID (id: %d): %w\n ", id, execErr)
+		return fmt.Errorf("failed to mark a user by ID (id: %d): %w", id, execErr)
 	}
 	return nil
 }
@@ -180,7 +180,7 @@ func ChangeUserPassword(db *sql.DB, id int64, newPassword string) error {
 
 	_, execErr := db.Exec(query, newPassword, id)
 	if execErr != nil {
-		return fmt.Errorf("Failed to update user password by ID (id: %d): %w\n", id, execErr)
+		return fmt.Errorf("failed to update user password by ID (id: %d): %w", id, execErr)
 	}
 
 	return nil
@@ -190,7 +190,7 @@ func ChangeGymName(db *sql.DB, id int64, newGymName string) error {
 	query := `UPDATE User SET gymName = ? WHERE id = ?`
 	_, execErr := db.Exec(query, newGymName, id)
 	if execErr != nil {
-		return fmt.Errorf("Failed to update gym name of a user (id: %d): %w\n", id, execErr)
+		return fmt.Errorf("failed to update gym name of a user (id: %d): %w", id, execErr)
 	}
 
 	return nil
@@ -201,7 +201,7 @@ func GetAllUsers(db *sql.DB) ([]User, error) {
 
 	rows, queryErr := db.Query(query)
 	if queryErr != nil {
-		return nil, fmt.Errorf("Failed to get all users: %w\n", queryErr)
+		return nil, fmt.Errorf("failed to get all users: %w", queryErr)
 	}
 
 	defer rows.Close()
@@ -214,7 +214,7 @@ func GetAllUsers(db *sql.DB) ([]User, error) {
 		scanErr := rows.Scan(&user.ID, &user.Email, &user.Name, &user.Gender, &user.Age, &user.Salary, &user.StartDate, &user.Permission)
 
 		if scanErr != nil {
-			common.Logger.Printf("Failed to scan a user from rows at row (%d): %v\n", counter, scanErr)
+			common.Logger.Printf("failed to scan a user from rows at row (%d): %v", counter, scanErr)
 		} else {
 			users = append(users, user)
 		}
@@ -231,7 +231,7 @@ func GetTotalSalaries(db *sql.DB) (int, error) {
 	sum := 0
 	scanErr := db.QueryRow(query).Scan(&sum)
 	if scanErr != nil {
-		return 0, fmt.Errorf("Failed to sum the total salaries: %w\n", scanErr)
+		return 0, fmt.Errorf("failed to sum the total salaries: %w", scanErr)
 	}
 
 	return sum, nil
@@ -296,20 +296,20 @@ func CreateSubscriber(db *sql.DB,
 ) error {
 	query := `
   INSERT INTO Subscriber 
-  (name, surname, age, paymentAmount, startedAt, endsAt, bucketPrice) 
+  (name, surname, age, gender, paymentAmount, startedAt, endsAt, bucketPrice) 
   VALUES 
-  (?, ?, ?, ?, ?, ?, ?)`
+  (?, ?, ?, ?, ?, ?, ?, ?)`
 
-	_, err := db.Exec(query, data.Name, data.Surname, data.Age, data.PaymentAmount, data.StartedAt, data.EndsAt, data.BucketPrice)
+	_, err := db.Exec(query, data.Name, data.Surname, data.Age, data.Gender, data.PaymentAmount, data.StartedAt, data.EndsAt, data.BucketPrice)
 	if err != nil {
-		return fmt.Errorf("Failed to create subscriber: %w\n", err)
+		return fmt.Errorf("failed to create subscriber: %w", err)
 	}
 
 	return nil
 }
 
 func GetAllSubscribers(db *sql.DB, limit int) ([]Subscriber, error) {
-	query := `SELECT id, name, surname, age, gender, duration, daysLeft, bucketPrice, paymentAmount, startedAt, endsAt, createdAt, updatedAt, deletedAt FROM Subscriber`
+	query := `SELECT id, name, surname, age, gender, COALESCE(duration, 0), COALESCE(daysLeft, 0), bucketPrice, paymentAmount, startedAt, endsAt, createdAt, updatedAt, COALESCE(deletedAt, '') FROM Subscriber`
 
 	if limit > 0 {
 		query = fmt.Sprintf("%s %s %d", query, "LIMIT", limit)
@@ -321,7 +321,7 @@ func GetAllSubscribers(db *sql.DB, limit int) ([]Subscriber, error) {
 			return []Subscriber{}, nil
 		}
 
-		return nil, fmt.Errorf("Failed to get all subscribers: %w\n", err)
+		return nil, fmt.Errorf("failed to get all subscribers: %w", err)
 	}
 
 	defer rows.Close()
@@ -339,7 +339,7 @@ func GetAllSubscribers(db *sql.DB, limit int) ([]Subscriber, error) {
 			bucketPrice, paymentAmount float64
 		)
 
-		scanErr := rows.Scan(&id, &name, &surname, &age, &gender, &duration, &daysLeft, &bucketPrice, &paymentAmount, &startedAt, &endsAt, &createdAt, &deletedAt)
+		scanErr := rows.Scan(&id, &name, &surname, &age, &gender, &duration, &daysLeft, &bucketPrice, &paymentAmount, &startedAt, &endsAt, &createdAt, &updatedAt, &deletedAt)
 
 		if scanErr != nil {
 			common.Logger.Printf("Failed to scan subscriber rows at row (%d): %v\n", counter, scanErr)
@@ -369,26 +369,26 @@ func GetAllSubscribers(db *sql.DB, limit int) ([]Subscriber, error) {
 }
 
 func GetSubscriberByID(db *sql.DB, id int64) (*Subscriber, error) {
-	query := `SELECT id, name, surname, age, gender, duration, daysLeft, bucketPrice, paymentAmount, startedAt, endsAt, createdAt, updatedAt, deletedAt FROM Subscriber WHERE id = ? WHERE deletedAt IS NULL`
+	query := `SELECT id, name, surname, age, gender, COALESCE(duration, 0), COALESCE(daysLeft, 0), bucketPrice, paymentAmount, startedAt, endsAt, createdAt, updatedAt FROM Subscriber WHERE id = ? AND deletedAt IS NULL`
 
 	sub := &Subscriber{}
-	scanErr := db.QueryRow(query, id).Scan(&sub.ID, &sub.Name, &sub.Surname, &sub.Age, &sub.Gender, &sub.Duration, &sub.DaysLeft, &sub.BucketPrice, &sub.PaymentAmount, &sub.StartedAt, &sub.EndsAt, &sub.CreatedAt, &sub.UpdatedAt, &sub.DeletedAt)
+	scanErr := db.QueryRow(query, id).Scan(&sub.ID, &sub.Name, &sub.Surname, &sub.Age, &sub.Gender, &sub.Duration, &sub.DaysLeft, &sub.BucketPrice, &sub.PaymentAmount, &sub.StartedAt, &sub.EndsAt, &sub.CreatedAt, &sub.UpdatedAt)
 
 	if scanErr != nil {
-		return nil, fmt.Errorf("Failed to get subscriber ID: %w\n", scanErr)
+		return nil, fmt.Errorf("failed to get subscriber ID: %w", scanErr)
 	}
 
 	return sub, nil
 }
 
 func GetSubscriberByIDWithDeleted(db *sql.DB, id int) (*Subscriber, error) {
-	query := `SELECT id, name, surname, age, gender, duration, daysLeft, bucketPrice, paymentAmount, startedAt, endsAt, createdAt, updatedAt, deletedAt FROM Subscriber WHERE id = ?`
+	query := `SELECT id, name, surname, age, gender, duration, daysLeft, bucketPrice, paymentAmount, startedAt, endsAt, createdAt, updatedAt, COALESCE(deletedAt, '') FROM Subscriber WHERE id = ?`
 
 	sub := &Subscriber{}
 	scanErr := db.QueryRow(query, id).Scan(&sub.ID, &sub.Name, &sub.Surname, &sub.Age, &sub.Gender, &sub.Duration, &sub.DaysLeft, &sub.BucketPrice, &sub.PaymentAmount, &sub.StartedAt, &sub.EndsAt, &sub.CreatedAt, &sub.UpdatedAt, &sub.DeletedAt)
 
 	if scanErr != nil {
-		return nil, fmt.Errorf("Failed to get subscriber ID: %w\n", scanErr)
+		return nil, fmt.Errorf("failed to get subscriber ID: %w", scanErr)
 	}
 
 	return sub, nil
@@ -404,7 +404,7 @@ func DeleteSubscriberByID(db *sql.DB, id int64, permanent bool) error {
 	_, execErr := db.Exec(query, id)
 
 	if execErr != nil {
-		return fmt.Errorf("Failed to delete a subscriber by ID: %w\n", execErr)
+		return fmt.Errorf("failed to delete a subscriber by ID: %w", execErr)
 	}
 
 	return nil
@@ -446,14 +446,14 @@ func UpdateSubscriber(db *sql.DB, data Subscriber) error {
 		data.ID)
 
 	if execErr != nil {
-		return fmt.Errorf("Failed to update a subscriber: %w\n", execErr)
+		return fmt.Errorf("failed to update a subscriber: %w", execErr)
 	}
 
 	return nil
 }
 
 func GetPlans(db *sql.DB) ([]Plan, error) {
-	query := `SELECT id, title, description, price, duration, createdAt, updatedAt, deletedAt FROM Plan WHERE deletedAt IS NULL`
+	query := `SELECT id, title, description, price, duration, createdAt, updatedAt, COALESCE(deletedAt, '') FROM Plan WHERE deletedAt IS NULL`
 
 	rows, execErr := db.Query(query)
 	if execErr != nil {
@@ -487,7 +487,7 @@ func GetPlans(db *sql.DB) ([]Plan, error) {
 }
 
 func GetPlansWithDeleted(db *sql.DB) ([]Plan, error) {
-	query := `SELECT id, title, description, price, duration, createdAt, updatedAt, deletedAt FROM Plan`
+	query := `SELECT id, title, description, price, duration, createdAt, updatedAt, COALESCE(deletedAt, '') FROM Plan`
 
 	rows, execErr := db.Query(query)
 	if execErr != nil {
@@ -521,7 +521,7 @@ func GetPlansWithDeleted(db *sql.DB) ([]Plan, error) {
 }
 
 func GetPlanByID(db *sql.DB, id int64) (*Plan, error) {
-	query := `SELECT title, description, price, duration, createdAt, updatedAt, deletedAt FROM Plan WHERE id = ?`
+	query := `SELECT title, description, price, duration, createdAt, updatedAt, COALESCE(deletedAt, '') FROM Plan WHERE id = ?`
 
 	plan := &Plan{}
 
@@ -572,7 +572,7 @@ func ReplacePlan(db *sql.DB, plan Plan) error {
 
 	if deleteErr != nil {
 		tx.Rollback()
-		return fmt.Errorf("Failed to delete a plan by ID in a transaction: %w\n", deleteErr)
+		return fmt.Errorf("failed to delete a plan by ID in a transaction: %v", deleteErr)
 	}
 
 	insertQuery := `INSERT INTO Plan (title, description, price, duration) VALUES (?, ?, ?, ?);`
@@ -581,7 +581,7 @@ func ReplacePlan(db *sql.DB, plan Plan) error {
 
 	if insertErr != nil {
 		tx.Rollback()
-		return fmt.Errorf("Failed to create a plan in a transaction: %w\n", insertErr)
+		return fmt.Errorf("failed to create a plan in a transaction: %v", insertErr)
 	}
 
 	commitErr := tx.Commit()
@@ -691,10 +691,10 @@ func GetProductWithCategoryByID(db *sql.DB, id int64) (*Product, error) {
 
 	if scanErr != nil {
 		if scanErr == sql.ErrNoRows {
-			return nil, fmt.Errorf("Product with ID (%d) not found\n", id)
+			return nil, fmt.Errorf("product with ID (%d) not found", id)
 		}
 
-		return nil, fmt.Errorf("Failed to get a product by ID (%d): %w\n", id, scanErr)
+		return nil, fmt.Errorf("failed to get a product by ID (%d): %w", id, scanErr)
 
 	}
 
@@ -702,23 +702,23 @@ func GetProductWithCategoryByID(db *sql.DB, id int64) (*Product, error) {
 }
 
 func CreateProduct(db *sql.DB, data Product) (int64, error) {
-	checkQuery := `SELECT EXISTS (SELECT 1 FROM ProductCategory WHERE id = ?)`
+	checkQuery := `SELECT EXISTS (SELECT 1 FROM ProductCategory WHERE id = ?) as exi`
 	query := `INSERT INTO Product (name, description, marka, price, categoryId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
 
 	var exists bool
 
-	checkScanErr := db.QueryRow(checkQuery, data.CategoryID).Scan(exists)
+	checkScanErr := db.QueryRow(checkQuery, data.CategoryID).Scan(&exists)
 	if checkScanErr != nil {
-		return 0, fmt.Errorf("Failed to check for product's CategoryID (%d): %w\n", data.CategoryID, checkScanErr)
+		return 0, fmt.Errorf("failed to check for product's CategoryID (%d): %w", data.CategoryID, checkScanErr)
 	}
 
 	if !exists {
-		return 0, fmt.Errorf("Product's CategoryID (%d) does not exist", data.CategoryID)
+		return 0, fmt.Errorf("product's CategoryID (%d) does not exist", data.CategoryID)
 	}
 
 	res, queryErr := db.Exec(query, data.Name, data.Description, data.Marka, data.Price, data.CategoryID)
 	if queryErr != nil {
-		return 0, fmt.Errorf("Failed to create a product: %w\n", queryErr)
+		return 0, fmt.Errorf("failed to create a product: %w", queryErr)
 	}
 
 	// TODO: Might be a bad idea.
@@ -733,18 +733,18 @@ func UpdateProduct(db *sql.DB, data Product) error {
 
 	var exists bool
 
-	checkScanErr := db.QueryRow(checkQuery, data.CategoryID).Scan(exists)
+	checkScanErr := db.QueryRow(checkQuery, data.CategoryID).Scan(&exists)
 	if checkScanErr != nil {
-		return fmt.Errorf("Failed to check for product's CategoryID (%d): %w\n", data.CategoryID, checkScanErr)
+		return fmt.Errorf("failed to check for product's CategoryID (%d): %w", data.CategoryID, checkScanErr)
 	}
 
 	if !exists {
-		return fmt.Errorf("Product's CategoryID (%d) does not exist", data.CategoryID)
+		return fmt.Errorf("product's CategoryID (%d) does not exist", data.CategoryID)
 	}
 
 	_, queryErr := db.Exec(query, data.Name, data.Description, data.Marka, data.Price, data.CategoryID, data.ID)
 	if queryErr != nil {
-		return fmt.Errorf("Failed to update a product: %w\n", queryErr)
+		return fmt.Errorf("failed to update a product: %w", queryErr)
 	}
 
 	return nil
@@ -755,7 +755,7 @@ func DeleteProductByID(db *sql.DB, id int64) error {
 
 	_, queryErr := db.Exec(query, id)
 	if queryErr != nil {
-		return fmt.Errorf("Failed to delete a product by ID (id: %d): %w\n", id, queryErr)
+		return fmt.Errorf("failed to delete a product by ID (id: %d): %w", id, queryErr)
 	}
 
 	return nil
@@ -791,7 +791,7 @@ func GetProductCategories(db *sql.DB) ([]ProductCategory, error) {
 }
 
 func GetProductsOfCategoryByID(db *sql.DB, id int64) ([]Product, error) {
-	query := `SELECT id, name, description, marka, price, categoryId, createdAt, updatedAt, deletedAt FROM Product WHERE categoryId = ?`
+	query := `SELECT id, name, description, marka, price, categoryId, createdAt, updatedAt, COALESCE(deletedAt, '') FROM Product WHERE categoryId = ?`
 
 	rows, queryErr := db.Query(query, id)
 	if queryErr != nil {
@@ -799,7 +799,7 @@ func GetProductsOfCategoryByID(db *sql.DB, id int64) ([]Product, error) {
 			return []Product{}, nil
 		}
 
-		return nil, fmt.Errorf("Failed to get products of a category: %w\n", queryErr)
+		return nil, fmt.Errorf("failed to get products of a category: %w", queryErr)
 	}
 
 	defer rows.Close()
@@ -1527,7 +1527,7 @@ func UpdateExercise(db *sql.DB, exercise Excercise) error {
 
 	_, execErr := db.Exec(query, exercise.Name, exercise.Description, exercise.CategoryID, exercise.ID)
 	if execErr != nil {
-		return fmt.Errorf("Failed to update exercise: %w\n", execErr)
+		return fmt.Errorf("failed to update exercise: %w", execErr)
 	}
 
 	return nil
@@ -1550,7 +1550,7 @@ func GetAllComments(db *sql.DB, size, offset int) ([]SubscriberComment, error) {
 	}
 
 	if queryErr != nil {
-		return nil, fmt.Errorf("Failed to get all, undeleted comments: %w\n", queryErr)
+		return nil, fmt.Errorf("failed to get all, undeleted comments: %w", queryErr)
 	}
 
 	defer rows.Close()
@@ -1590,7 +1590,7 @@ func GetAllCommentsIncludes(db *sql.DB, size, offset int, includeUsers, includeS
 	}
 
 	if queryErr != nil {
-		return nil, fmt.Errorf("Failed to get all, undeleted comments: %w\n", queryErr)
+		return nil, fmt.Errorf("failed to get all, undeleted comments: %w", queryErr)
 	}
 
 	defer rows.Close()
@@ -1603,14 +1603,14 @@ func GetAllCommentsIncludes(db *sql.DB, size, offset int, includeUsers, includeS
 
 		scanErr := rows.Scan(&comment.ID, &comment.Text, &comment.CreatedAt, &comment.UpdatedAt, &comment.SenderID, &comment.SubscriberID)
 		if scanErr != nil {
-			common.Logger.Printf("Failed to scan a comment from rows at row (%d): %v\n", counter, scanErr)
+			common.Logger.Printf("failed to scan a comment from rows at row (%d): %v", counter, scanErr)
 		} else {
 			comments = append(comments, comment)
 
 			if includeUsers {
 				user, userQueryErr := GetUserByID(db, int64(comment.SenderID))
 				if userQueryErr != nil {
-					common.Logger.Printf("Failed to get a user for a comment (relation) at row (%d): %v\n", counter, userQueryErr)
+					common.Logger.Printf("failed to get a user for a comment (relation) at row (%d): %v", counter, userQueryErr)
 				} else {
 					comment.Sender = user
 				}
@@ -1713,16 +1713,16 @@ func GetAllCommentsOfSubscriberID(db *sql.DB, id int64, size, offset int) ([]Sub
 }
 
 func CreateComment(db *sql.DB, comment SubscriberComment) (int64, error) {
-	query := `INSERT INTO SubscriberComment (text, senderId, subscriberId) VALUES (?, ?)`
+	query := `INSERT INTO SubscriberComment (text, senderId, subscriberId) VALUES (?, ?, ?)`
 	res, execErr := db.Exec(query, comment.Text, comment.SenderID, comment.SubscriberID)
 
 	if execErr != nil {
-		return 0, fmt.Errorf("Failed to create a comment: %w\n", execErr)
+		return 0, fmt.Errorf("failed to create a comment: %w", execErr)
 	}
 
 	id, lastInsertErr := res.LastInsertId()
 	if lastInsertErr != nil {
-		return 0, fmt.Errorf("Failed to retrieve last inserted ID: %w\n", lastInsertErr)
+		return 0, fmt.Errorf("failed to retrieve last inserted ID: %w", lastInsertErr)
 	}
 
 	return id, nil
@@ -1778,37 +1778,37 @@ func CreateAnnouncementToAll(db *sql.DB, text string) (int64, error) {
 
 	tx, txErr := db.Begin()
 	if txErr != nil {
-		return 0, fmt.Errorf("Failed to create an announcement to all (failed transaction): %w\n", txErr)
+		return 0, fmt.Errorf("failed to create an announcement to all (failed transaction): %w", txErr)
 	}
 
 	res, annErr := tx.Exec(annQuery, text)
 	if annErr != nil {
 		rollErr := tx.Rollback()
 		if rollErr != nil {
-			return 0, fmt.Errorf("Failed to rollback on transaction at announcement creation: %w\n", rollErr)
+			return 0, fmt.Errorf("failed to rollback on transaction at announcement creation: %w", rollErr)
 		}
 
-		return 0, fmt.Errorf("Failed to create announcement: %w\n", annErr)
+		return 0, fmt.Errorf("failed to create announcement: %w", annErr)
 	}
 
 	insertedId, idErr := res.LastInsertId()
 	if idErr != nil {
 		rollErr := tx.Rollback()
 		if rollErr != nil {
-			return 0, fmt.Errorf("Failed to rollback on transaction at announcement creation id retrieval: %w\n", rollErr)
+			return 0, fmt.Errorf("failed to rollback on transaction at announcement creation id retrieval: %w", rollErr)
 		}
 
-		return 0, fmt.Errorf("Failed to retrieve created announcement ID: %w\n", idErr)
+		return 0, fmt.Errorf("failed to retrieve created announcement ID: %w", idErr)
 	}
 
 	userRows, userQueryErr := tx.Query(userQuery)
 	if userQueryErr != nil {
 		rollErr := tx.Rollback()
 		if rollErr != nil {
-			return 0, fmt.Errorf("Failed to rollback on transaction at user ids fetching: %w\n", rollErr)
+			return 0, fmt.Errorf("failed to rollback on transaction at user ids fetching: %w", rollErr)
 		}
 
-		return 0, fmt.Errorf("Failed to get user IDs: %w\n", userQueryErr)
+		return 0, fmt.Errorf("failed to get user IDs: %w", userQueryErr)
 	}
 
 	defer userRows.Close()

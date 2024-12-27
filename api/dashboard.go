@@ -140,12 +140,12 @@ func CreatePlan(ctx *gin.Context) {
 }
 
 func DeletePlanByID(ctx *gin.Context) {
-	params := NonEmptyQueryInt64OrAbort(ctx, "id")
-	if params == nil {
+	idStr := ctx.Params.ByName("id")
+	id, convErr := strconv.ParseInt(idStr, 10, 64)
+	if convErr != nil {
+		ctx.String(http.StatusBadRequest, "invalid paramter: id")
 		return
 	}
-
-	id := params[0]
 
 	queryErr := db.DeletePlanByID(db.DB, id)
 	if queryErr != nil {
@@ -293,12 +293,12 @@ func UpdateHomeProduct(ctx *gin.Context) {
 }
 
 func DeleteHomeProductByID(ctx *gin.Context) {
-	params := NonEmptyQueryInt64OrAbort(ctx, "id")
-	if params == nil {
+	idStr := ctx.Params.ByName("id")
+	id, convErr := strconv.ParseInt(idStr, 10, 64)
+	if convErr != nil {
+		ctx.String(http.StatusBadRequest, "Invalid parameter: id")
 		return
 	}
-
-	id := params[0]
 
 	queryErr := db.DeleteProductByID(db.DB, id)
 	if queryErr != nil {
@@ -392,12 +392,12 @@ func CreateProductCategory(ctx *gin.Context) {
 }
 
 func DeleteProductCategoryByID(ctx *gin.Context) {
-	params := NonEmptyQueryInt64OrAbort(ctx, "id")
-	if params == nil {
+	idStr := ctx.Params.ByName("id")
+	id, convErr := strconv.ParseInt(idStr, 10, 64)
+	if convErr != nil {
+		ctx.String(http.StatusBadRequest, "Invalid parameter: id")
 		return
 	}
-
-	id := params[0]
 
 	queryErr := db.DeleteProductCategoryByID(db.DB, id)
 	if queryErr != nil {
@@ -435,12 +435,12 @@ func MoveProductToCategory(ctx *gin.Context) {
 }
 
 func DeleteProductsOfCategory(ctx *gin.Context) {
-	params := NonEmptyQueryInt64OrAbort(ctx, "id")
-	if params == nil {
+	idStr := ctx.Params.ByName("id")
+	id, convErr := strconv.ParseInt(idStr, 10, 64)
+	if convErr != nil {
+		ctx.String(http.StatusBadRequest, "Invalid parameter: id")
 		return
 	}
-
-	id := params[0]
 
 	queryErr := db.DeleteProductsOfCategoryByID(db.DB, id)
 	if queryErr != nil {
@@ -484,7 +484,7 @@ func GetContacts(ctx *gin.Context) {
 func UpdateContacts(ctx *gin.Context) {
 	contacts := db.Contacts{}
 
-	bindErr := ctx.ShouldBindJSON(contacts)
+	bindErr := ctx.ShouldBindJSON(&contacts)
 	if bindErr != nil {
 		ctx.String(http.StatusBadRequest, "Invalid data: %v", bindErr)
 		return

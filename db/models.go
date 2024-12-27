@@ -44,11 +44,11 @@ type AdsInfo struct {
 }
 
 type Contacts struct {
-	Email     string
-	Twitter   string
-	Instagram string
-	WhatsApp  string
-	Facebook  string
+	Email     string `json:"email"`
+	Twitter   string `json:"twitter"`
+	Instagram string `json:"instagram"`
+	WhatsApp  string `json:"whatsapp"`
+	Facebook  string `json:"facebook"`
 }
 
 type Subscriber struct {

@@ -22,7 +22,7 @@ func GetAllComments(ctx *gin.Context) {
 }
 
 func GetAllCommentsOfManager(ctx *gin.Context) {
-	idStr := ctx.Query("id")
+	idStr := ctx.Params.ByName("id")
 
 	if idStr == "" {
 		ctx.String(http.StatusBadRequest, "Required query parameter: id")
@@ -46,7 +46,7 @@ func GetAllCommentsOfManager(ctx *gin.Context) {
 }
 
 func GetAllCommentsOfSubscriber(ctx *gin.Context) {
-	idStr := ctx.Query("id")
+	idStr := ctx.Params.ByName("id")
 
 	if idStr == "" {
 		ctx.String(http.StatusBadRequest, "Required query parameter: id")
@@ -93,7 +93,7 @@ func CreateComment(ctx *gin.Context) {
 }
 
 func DeleteComment(ctx *gin.Context) {
-	idStr := ctx.Query("id")
+	idStr := ctx.Params.ByName("id")
 
 	if idStr == "" {
 		ctx.String(http.StatusBadRequest, "Required query parameter: id")

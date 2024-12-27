@@ -17,6 +17,20 @@ import (
 * API handlers here
  */
 
+func GetUserBySession(ctx *gin.Context) {
+	userPtr, exists := ctx.Get("user")
+	if !exists {
+		ctx.String(http.StatusBadRequest, "Session cookie not found.")
+		return
+	}
+
+	user, _ := userPtr.(*db.User)
+	userCopy := *user
+	userCopy.Password = ""
+
+	ctx.JSON(http.StatusOK, &userCopy)
+}
+
 func SignIn(ctx *gin.Context) {
 	signin := dto.Signin_Req{}
 	if bindErr := ctx.ShouldBindJSON(&signin); bindErr != nil {
@@ -33,7 +47,7 @@ func SignIn(ctx *gin.Context) {
 
 	if scanErr != nil {
 		if scanErr == sql.ErrNoRows {
-			ctx.String(400, "Account not found")
+			ctx.String(404, "Account not found")
 			return
 		}
 

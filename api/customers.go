@@ -115,12 +115,12 @@ func GetAllCustomers(ctx *gin.Context) {
 }
 
 func GetCustomerByID(ctx *gin.Context) {
-	params := NonEmptyQueryInt64OrAbort(ctx, "id")
-	if params == nil {
+	idStr := ctx.Params.ByName("id")
+	id, convErr := strconv.ParseInt(idStr, 10, 64)
+	if convErr != nil {
+		ctx.String(http.StatusBadRequest, "Invalid paramter: id")
 		return
 	}
-
-	id := params[0]
 
 	sub, queryErr := db.GetSubscriberByID(db.DB, id)
 	if queryErr != nil {

@@ -10,6 +10,7 @@ import (
 
 func NonEmptyQueryInt64OrAbort(ctx *gin.Context, params ...string) []int64 {
 	if ctx == nil || len(params) == 0 {
+		ctx.String(http.StatusBadRequest, "Missing all required query paramters")
 		return nil
 	}
 

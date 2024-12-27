@@ -14,7 +14,6 @@ import (
 
 func main() {
 	defer db.DB.Close()
-
 	server := gin.Default()
 
 	server.GET("/", func(ctx *gin.Context) {
@@ -30,6 +29,7 @@ func main() {
 			auth.Use(api.Auth())
 			auth.POST("/signout", api.Signout)
 			auth.PATCH("/changepassword", api.ChangePassword)
+			auth.GET("/", api.GetUserBySession)
 
 			{
 				comments := auth.Group("/comments")
@@ -48,7 +48,7 @@ func main() {
 				_ = customers.PUT("/count-ending", api.CountCustomersEndingIn)
 				_ = customers.GET("/count-expired", api.CountCustomersExpiring)
 				_ = customers.POST("/new", api.CreateCustomer)
-				_ = customers.GET("/all", api.GetAllComments)
+				_ = customers.GET("/all", api.GetAllCustomers)
 				_ = customers.GET("/:id", api.GetCustomerByID)
 				_ = customers.DELETE("/:id", api.DeleteCustomerByID)
 				_ = customers.DELETE("/delist/:id", api.MarkCustomerAsDeleted)
@@ -91,36 +91,39 @@ func main() {
 				_ = exercises.PATCH("/byid/:id", api.UpdateExcerciseById)
 			}
 			{
-				dash := auth.Group("/dashboard")
+				dash := v1.Group("/dashboard")
 
 				_ = dash.GET("/home", api.GetHomeInfo)
 				_ = dash.GET("/general", api.GetHomeGeneralInfo)
-				_ = dash.PATCH("/general", api.UpdateHomeGeneralInfo)
 				_ = dash.GET("/plan-paragraph", api.GetPlanParagrarph)
-				_ = dash.PATCH("/plan-paragraph", api.UpdatePlanParagraph)
 				_ = dash.GET("/plans", api.GetHomePlans)
 				_ = dash.GET("/plan/:id", api.GetPlanByID)
+				_ = dash.GET("/ads", api.GetAdsInfo)
+				_ = dash.GET("/products", api.GetHomeProducts)
+				_ = dash.GET("/product/:id", api.GetProductByID)
+				_ = dash.GET("/product/categories", api.GetProductCategories)
+				_ = dash.GET("/products-in-categories", api.GetCategoryProducts)
+				_ = dash.GET("/products/category", api.GetProductsOfCategory)
+				_ = dash.GET("/products-exists-in-category", api.ProductExistsUnderCategory)
+				_ = dash.GET("/contacts", api.GetContacts)
+			}
+			{
+				dash := auth.Group("/dashboard")
+
+				_ = dash.PATCH("/general", api.UpdateHomeGeneralInfo)
+				_ = dash.PATCH("/plan-paragraph", api.UpdatePlanParagraph)
 				_ = dash.POST("/plan/new", api.CreatePlan)
 				_ = dash.DELETE("/plan/:id", api.DeletePlanByID)
 				_ = dash.PATCH("/plan", api.ReplacePlanByID)
-				_ = dash.GET("/ads", api.GetAdsInfo)
 				_ = dash.PATCH("/ads", api.UpdateAdsInfo)
-				_ = dash.GET("/products", api.GetHomeProducts)
-				_ = dash.GET("/product/:id", api.GetProductByID)
 				_ = dash.POST("/product/new", api.CreateHomeProduct)
 				_ = dash.DELETE("/product/:id", api.DeleteHomeProductByID)
 				_ = dash.PATCH("/product", api.UpdateHomeProduct)
-				_ = dash.GET("/product/categories", api.GetProductCategories)
-				_ = dash.GET("/products-in-categories", api.GetCategoryProducts)
-				_ = dash.GET("/products/category/:id", api.GetProductsOfCategory)
 				_ = dash.POST("/product-category/new", api.CreateProductCategory)
 				_ = dash.DELETE("/product-category/:id", api.DeleteProductCategoryByID)
 				_ = dash.DELETE("/products-of-category/:id", api.DeleteProductsOfCategory)
-				_ = dash.GET("/products-exists-in-category/:productId", api.ProductExistsUnderCategory)
-				_ = dash.GET("/contacts", api.GetContacts)
-				_ = dash.PATCH("/contacts", api.GetContacts)
+				_ = dash.PATCH("/contacts", api.UpdateContacts)
 			}
-
 			{
 				admin := auth.Group("/admin")
 				admin.Use(api.AdminOnly())
