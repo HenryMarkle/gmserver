@@ -7,6 +7,9 @@
 package main
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/HenryMarkle/gmserver/api"
 	"github.com/HenryMarkle/gmserver/db"
 	"github.com/gin-gonic/gin"
@@ -14,6 +17,21 @@ import (
 
 func main() {
 	defer db.DB.Close()
+
+	data, e := os.ReadFile(`/home/henry/Projects/gmserver/db/migrations/init.sql`)
+	if e != nil {
+		fmt.Printf("FILE ERROR: %v\n", e)
+		return
+	}
+
+	_, exeErr := db.DB.Exec(string(data))
+	if exeErr != nil {
+		fmt.Printf("SQL ERROR: %v\n", exeErr)
+		return
+	}
+
+	return
+
 	server := gin.Default()
 
 	server.GET("/", func(ctx *gin.Context) {

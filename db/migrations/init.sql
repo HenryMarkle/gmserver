@@ -189,3 +189,29 @@ CREATE UNIQUE INDEX "ExcerciseCategory_name_key" ON "ExcerciseCategory"("name");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Excercise_name_key" ON "Excercise"("name");
+
+insert into LandingPageData (
+    title, 
+    starterSentence, 
+    secondStarterSentence, 
+    plansParagraph, 
+    adsOnImageBoldText, 
+    adsOnImageDescription, 
+    emailContact, 
+    twitterContact, 
+    facebookContact, 
+    instigramContact, 
+    whatsappContact
+) values (
+    'Title', 
+    'Sentence', 
+    'Second Sentence', 
+    'Plans', 
+    'Ads Title', 
+    'Ads Description', 
+    'example@gmail.com', 
+    '@HenryMarkle', 
+    '@HenryMarkle', 
+    '@Henry_Markle', 
+    'Henry Markle'
+);

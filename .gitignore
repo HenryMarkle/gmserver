@@ -4,3 +4,4 @@ static/
 static/*
 .vscode/
 .cache/
+ca.pem
