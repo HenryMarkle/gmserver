@@ -30,7 +30,7 @@ func main() {
 
 		{
 			auth := v1.Group("/auth")
-			auth.Use(api.Auth())
+			// auth.Use(api.Auth())
 			auth.POST("/signout", api.Signout)
 			auth.PATCH("/changepassword", api.ChangePassword)
 			auth.GET("/", api.GetUserBySession)
