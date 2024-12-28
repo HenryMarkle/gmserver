@@ -48,8 +48,8 @@ type LandingPageGeneralData struct {
 }
 
 type AdsInfo struct {
-	Title       string
-	Description string
+	Title       string `json:"title"`
+	Description string `json:"description"`
 }
 
 type Contacts struct {

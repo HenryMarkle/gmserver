@@ -98,12 +98,12 @@ func GetHomePlans(ctx *gin.Context) {
 }
 
 func GetPlanByID(ctx *gin.Context) {
-	params := NonEmptyQueryInt64OrAbort(ctx, "id")
-	if params == nil {
+	idStr := ctx.Params.ByName("id")
+	id, convErr := strconv.ParseInt(idStr, 10, 64)
+	if convErr != nil {
+		ctx.String(http.StatusBadRequest, "Invalid parameter: id")
 		return
 	}
-
-	id := params[0]
 
 	plan, queryErr := db.GetPlanByID(db.DB, id)
 	if queryErr != nil {
