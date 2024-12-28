@@ -73,7 +73,7 @@ func SignIn(ctx *gin.Context) {
 
 	ctx.SetCookie("gmserver-session", sessionId.String(), 1000*60*60*6, "/", "", true, true)
 
-	ctx.Status(200)
+	ctx.String(200, "Signed in successfully.")
 }
 
 func Signout(ctx *gin.Context) {
