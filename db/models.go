@@ -115,6 +115,17 @@ type Product struct {
 	CategoryID  int64
 }
 
+type ProductBasket struct {
+	ID       int64
+	Quantity int
+
+	CustomerID int64
+	Customer   *User
+
+	ProductID int64
+	Product   *Product
+}
+
 type ExcerciseCategory struct {
 	Name       string
 	Excercises []Excercise

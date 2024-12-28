@@ -129,6 +129,16 @@ func main() {
 				_ = dash.PATCH("/contacts", api.UpdateContacts)
 			}
 			{
+				basket := auth.Group("/basket")
+
+				_ = basket.GET("/", api.GetUserBasket)
+				_ = basket.GET("/:basketId", api.GetUserBasketByID)
+				_ = basket.POST("/", api.AddToUserBasket)
+				_ = basket.PATCH("/increment", api.IncrementBasketQuantity)
+				_ = basket.PATCH("/decrement", api.DecrementBasketQuantity)
+				_ = basket.DELETE("/", api.DeleteBasket)
+			}
+			{
 				admin := auth.Group("/admin")
 				admin.Use(api.AdminOnly())
 			}

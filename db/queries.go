@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 
@@ -924,7 +925,7 @@ func GetLandingPageGeneralInfo(db *sql.DB) (*LandingPageGeneralData, error) {
 	scanErr := db.QueryRow(query).Scan(&info.Title, &info.StarterSentence, &info.SecondStarterSentence, &info.PlansParagraph)
 
 	if scanErr != nil {
-		return nil, fmt.Errorf("Failed to get landing page general info: %w\n", scanErr)
+		return nil, fmt.Errorf("failed to get landing page general info: %w", scanErr)
 	}
 
 	return info, nil
@@ -935,7 +936,7 @@ func CreateProductCategory(db *sql.DB, name string) (int64, error) {
 
 	res, queryErr := db.Exec(query, name)
 	if queryErr != nil {
-		return 0, fmt.Errorf("Failed to create a product category: %w\n", queryErr)
+		return 0, fmt.Errorf("failed to create a product category: %w", queryErr)
 	}
 
 	id, _ := res.LastInsertId()
@@ -948,7 +949,178 @@ func DeleteProductCategoryByID(db *sql.DB, id int64) error {
 
 	_, queryErr := db.Exec(query, id)
 	if queryErr != nil {
-		return fmt.Errorf("Failed to delete a product category by ID (id: %d): %w\n", id, queryErr)
+		return fmt.Errorf("failed to delete a product category by ID (id: %d): %w", id, queryErr)
+	}
+
+	return nil
+}
+
+func GetProductBasketByID(db *sql.DB, id int64) (*ProductBasket, error) {
+	query := `SELECT * FROM ProductBasket WHERE id = ?`
+
+	basket := ProductBasket{}
+
+	scanErr := db.QueryRow(query, id).Scan(&basket.ID, &basket.Quantity, &basket.CustomerID, &basket.ProductID)
+	if scanErr != nil {
+		return nil, fmt.Errorf("failed to query or scan product basket: %w", scanErr)
+	}
+
+	return &basket, nil
+}
+
+func GetProductBasketByID_WithProduct(db *sql.DB, id int64) (*ProductBasket, error) {
+	query := `SELECT * FROM ProductBasket WHERE id = ?`
+
+	basket := ProductBasket{}
+
+	scanErr := db.QueryRow(query, id).Scan(&basket.ID, &basket.Quantity, &basket.CustomerID, &basket.ProductID)
+	if scanErr != nil {
+		if scanErr == sql.ErrNoRows {
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("failed to query or scan product basket: %w", scanErr)
+	} else {
+		product, prodQueryyErr := GetProductByID(db, basket.ProductID)
+		if prodQueryyErr != nil {
+			return nil, fmt.Errorf("failed to fetch basket product: %w", prodQueryyErr)
+		}
+
+		basket.Product = product
+	}
+
+	return &basket, nil
+}
+
+func GetAllBasketProductsOfUser(db *sql.DB, userID int64) ([]ProductBasket, error) {
+	query := `SELECT * FROM ProductBasket WHERE customerId = ?`
+
+	rows, queryErr := db.Query(query, userID)
+	if queryErr != nil {
+		if queryErr == sql.ErrNoRows {
+			return []ProductBasket{}, nil
+		}
+
+		return nil, fmt.Errorf("failed to query basket products of a user: %w", queryErr)
+	}
+
+	defer rows.Close()
+
+	baskets := []ProductBasket{}
+	counter := 0
+
+	for rows.Next() {
+		basket := ProductBasket{}
+
+		scanErr := rows.Scan(&basket.ID, &basket.Quantity, &basket.CustomerID, &basket.ProductID)
+		if scanErr != nil {
+			common.Logger.Printf("failed to scan a basket product at row %d: %v", counter, scanErr)
+		} else {
+			baskets = append(baskets, basket)
+		}
+
+		counter++
+	}
+
+	return baskets, nil
+}
+
+func GetAllBasketProductsOfUser_WithProducts(db *sql.DB, userID int64) ([]ProductBasket, error) {
+	query := `SELECT * FROM ProductBasket WHERE customerId = ?`
+
+	rows, queryErr := db.Query(query, userID)
+	if queryErr != nil {
+		if queryErr == sql.ErrNoRows {
+			return []ProductBasket{}, nil
+		}
+
+		return nil, fmt.Errorf("failed to query basket products of a user: %w", queryErr)
+	}
+
+	defer rows.Close()
+
+	baskets := []ProductBasket{}
+	counter := 0
+
+	for rows.Next() {
+		basket := ProductBasket{}
+
+		scanErr := rows.Scan(&basket.ID, &basket.Quantity, &basket.CustomerID, &basket.ProductID)
+		if scanErr != nil {
+			common.Logger.Printf("failed to scan a basket product at row %d: %v", counter, scanErr)
+		} else {
+			product, productQueryErr := GetProductByID(db, basket.ProductID)
+			if productQueryErr != nil {
+				common.Logger.Printf("failed to fetch a product by ID for array at row %d: %v", counter, productQueryErr)
+			} else {
+				basket.Product = product
+			}
+
+			baskets = append(baskets, basket)
+		}
+
+		counter++
+	}
+
+	return baskets, nil
+}
+
+func CreateProductBasket(db *sql.DB, userID, productID int64, quantity int) (int64, error) {
+	if quantity < 1 {
+		return 0, errors.New("quantity must be a positive non-zero number")
+	}
+
+	var basketID int64
+	existsQuery := db.QueryRow(`SELECT id FROM ProductBasket WHERE userId = ? AND productId = ? LIMIT 1`, userID, productID).Scan(&basketID)
+	if existsQuery == nil {
+		_, incrementErr := db.Exec(`UPDATE ProductBasket SET quantity = quantity + 1 WHERE id = ?`, basketID)
+		if incrementErr != nil {
+			return basketID, fmt.Errorf("failed to increment basket quantity upon check: %w", incrementErr)
+		}
+
+		return basketID, nil
+	}
+
+	query := `INSERT INTO ProductBasket (customerId, productId, quantity) values (?, ?, ?)`
+
+	res, execError := db.Exec(query, userID, productID, quantity)
+	if execError != nil {
+		return 0, fmt.Errorf("failed to insert a new product basket: %w", execError)
+	}
+
+	insertedID, _ := res.LastInsertId()
+
+	return insertedID, nil
+}
+
+func DeleteProductBasketByID(db *sql.DB, id int64) error {
+	query := `DELETE FROM ProductBasket WHERE id = ?`
+
+	_, execErr := db.Exec(query, id)
+	if execErr != nil {
+		return fmt.Errorf("failed to delete a product basket: %w", execErr)
+	}
+
+	return nil
+}
+
+func IncrementBasketProductQuantityByID(db *sql.DB, basketID int64) error {
+	query := `UPDATE ProductBasket SET quantity = quantity + 1 WHERE id = ?`
+
+	_, execErr := db.Exec(query, basketID)
+	if execErr != nil {
+		return fmt.Errorf("failed to increment basket quantity: %w", execErr)
+	}
+
+	return nil
+}
+
+func DecrementBasketProductQuantityByID(db *sql.DB, basketID int64) error {
+	query := `UPDATE ProductBasket SET quantity = quantity - 1 WHERE id = ?`
+
+	_, execErr := db.Exec(query, basketID)
+	if execErr != nil {
+		return fmt.Errorf("failed to increment basket quantity: %w", execErr)
 	}
 
 	return nil
@@ -960,7 +1132,7 @@ func UpdateLandingPageGeneralInfo(db *sql.DB, info LandingPageGeneralData) error
 	_, execErr := db.Exec(query, info.Title, info.StarterSentence, info.SecondStarterSentence, info.PlansParagraph)
 
 	if execErr != nil {
-		return fmt.Errorf("Failed to update landing page general info: %w\n", execErr)
+		return fmt.Errorf("failed to update landing page general info: %w", execErr)
 	}
 
 	return nil
@@ -974,7 +1146,7 @@ func GetPlansParagraph(db *sql.DB) (string, error) {
 	scanErr := db.QueryRow(query).Scan(&text)
 
 	if scanErr != nil {
-		return "", fmt.Errorf("Failed to get plans paragraph: %w\n", scanErr)
+		return "", fmt.Errorf("failed to get plans paragraph: %w", scanErr)
 	}
 
 	return text, nil
@@ -985,7 +1157,7 @@ func UpdatePlansParagraph(db *sql.DB, text string) error {
 
 	_, execErr := db.Exec(query, text)
 	if execErr != nil {
-		return fmt.Errorf("Failed to update plans paragraph: %w\n", execErr)
+		return fmt.Errorf("failed to update plans paragraph: %w", execErr)
 	}
 
 	return nil
@@ -998,7 +1170,7 @@ func GetAdsInfo(db *sql.DB) (*AdsInfo, error) {
 
 	scanErr := db.QueryRow(query).Scan(&info.Title, &info.Description)
 	if scanErr != nil {
-		return nil, fmt.Errorf("Failed to get ads info: %w\n", scanErr)
+		return nil, fmt.Errorf("failed to get ads info: %w", scanErr)
 	}
 
 	return info, nil
@@ -1009,7 +1181,7 @@ func UpdateAdsInfo(db *sql.DB, info AdsInfo) error {
 
 	_, execErr := db.Exec(query, info.Title, info.Description)
 	if execErr != nil {
-		return fmt.Errorf("Failed to update ads info: %w\n", execErr)
+		return fmt.Errorf("failed to update ads info: %w", execErr)
 	}
 
 	return nil
