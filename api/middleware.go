@@ -75,7 +75,7 @@ func AllowAllOrigins() gin.HandlerFunc {
 		common.Logger.Printf("request from origin %s\n", ctx.Request.Header.Get("Origin"))
 
 		ctx.Header("Access-Control-Allow-Origin", "*")
-		ctx.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		ctx.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS")
 		ctx.Header("Access-Control-Allow-Headers", "Content-Type, Accept, Accept-Encoding, Connection, Content-Length, Authorization, Cookie")
 		// ctx.Header("Access-Control-Allow-Credentials", "true")
 
