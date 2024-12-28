@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -22,7 +23,7 @@ func GetAllSections(ctx *gin.Context) {
 }
 
 func GetSectionByName(ctx *gin.Context) {
-	name := ctx.Query("name")
+	name := ctx.Params.ByName("name")
 
 	if name == "" {
 		ctx.String(http.StatusBadRequest, "Required query parameter: name")
@@ -90,12 +91,12 @@ func DeleteSection(ctx *gin.Context) {
 }
 
 func UpdateSectionById(ctx *gin.Context) {
-	params := NonEmptyQueryInt64OrAbort(ctx, "id")
-	if params == nil {
+	idStr := ctx.Params.ByName("id")
+	id, convErr := strconv.ParseInt(idStr, 10, 64)
+	if convErr != nil {
+		ctx.String(http.StatusBadRequest, "Invalid parameter: id")
 		return
 	}
-
-	id := params[0]
 
 	newName := ctx.Query("name")
 	if newName == "" {
@@ -116,12 +117,12 @@ func UpdateSectionById(ctx *gin.Context) {
 }
 
 func DeleteSectionWithExercises(ctx *gin.Context) {
-	params := NonEmptyQueryInt64OrAbort(ctx, "id")
-	if params == nil {
+	idStr := ctx.Params.ByName("id")
+	id, convErr := strconv.ParseInt(idStr, 10, 64)
+	if convErr != nil {
+		ctx.String(http.StatusBadRequest, "Invliad parameter: id")
 		return
 	}
-
-	id := params[0]
 
 	queryErr := db.DeleteExerciseSectionByIDWithExercises(db.DB, id)
 	if queryErr != nil {
@@ -134,7 +135,7 @@ func DeleteSectionWithExercises(ctx *gin.Context) {
 }
 
 func CountSectionExercises(ctx *gin.Context) {
-	name := ctx.Query("name")
+	name := ctx.Params.ByName("name")
 	if name == "" {
 		ctx.String(http.StatusBadRequest, "Required query parameter: name")
 		return
@@ -203,11 +204,12 @@ func GetAllExcercises(ctx *gin.Context) {
 }
 
 func GetAllExcercisesOfSection(ctx *gin.Context) {
-	params := NonEmptyQueryInt64OrAbort(ctx, "id")
-	if params == nil {
+	idStr := ctx.Params.ByName("id")
+	id, convErr := strconv.ParseInt(idStr, 10, 64)
+	if convErr != nil {
+		ctx.String(http.StatusBadRequest, "Invalid parameter: id")
 		return
 	}
-	id := params[0]
 
 	exercises, queryErr := db.GetAllExercisesOfSection(db.DB, id)
 	if queryErr != nil {
@@ -269,12 +271,12 @@ func DeleteExcercise(ctx *gin.Context) {
 }
 
 func DeleteExcerciseById(ctx *gin.Context) {
-	params := NonEmptyQueryInt64OrAbort(ctx, "id")
-	if params == nil {
+	idStr := ctx.Params.ByName("id")
+	id, convErr := strconv.ParseInt(idStr, 10, 64)
+	if convErr != nil {
+		ctx.String(http.StatusBadRequest, "Invalid parameter: id")
 		return
 	}
-
-	id := params[0]
 
 	queryErr := db.DeleteExerciseByID(db.DB, id)
 	if queryErr != nil {

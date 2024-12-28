@@ -1910,21 +1910,21 @@ func MarkMessageAsRead(db *sql.DB, userId, messageId int64) error {
 
 	_, execErr := db.Exec(query, userId, messageId)
 	if execErr != nil {
-		return fmt.Errorf("Failed to mark a message as read: %w\n", execErr)
+		return fmt.Errorf("failed to mark a message as read: %w", execErr)
 	}
 
 	return nil
 }
 
 func GetAllTrainers(db *sql.DB) ([]Trainer, error) {
-	query := `SELECT id, name, job, description, intsigram, facebook, twitter FROM Trainer`
+	query := `SELECT id, name, job, description, instagram, facebook, twitter FROM Trainer`
 
 	rows, queryErr := db.Query(query)
 	if queryErr != nil {
 		if queryErr == sql.ErrNoRows {
 			return []Trainer{}, nil
 		}
-		return nil, fmt.Errorf("Failed to get all trainers: %W\n", queryErr)
+		return nil, fmt.Errorf("failed to get all trainers: %w", queryErr)
 	}
 
 	defer rows.Close()
@@ -1937,7 +1937,7 @@ func GetAllTrainers(db *sql.DB) ([]Trainer, error) {
 
 		scanErr := rows.Scan(&trainer.ID, &trainer.Name, &trainer.Job, &trainer.Description, &trainer.Instigram, &trainer.Facebook, &trainer.Twitter)
 		if scanErr != nil {
-			common.Logger.Printf("Failed to scan a trainer from rows at row (%d): %v\n", counter, scanErr)
+			common.Logger.Printf("failed to scan a trainer from rows at row (%d): %v", counter, scanErr)
 		} else {
 			trainers = append(trainers, trainer)
 		}
@@ -1949,49 +1949,49 @@ func GetAllTrainers(db *sql.DB) ([]Trainer, error) {
 }
 
 func CreateTrainer(db *sql.DB, data Trainer) (int64, error) {
-	query := `INSERT INTO Trainer (name, job, description, instigram, facebook, twitter) VALUES (?, ?, ?, ?, ?)`
+	query := `INSERT INTO Trainer (name, job, description, instagram, facebook, twitter) VALUES (?, ?, ?, ?, ?, ?)`
 
 	tx, txErr := db.Begin()
 	if txErr != nil {
-		return 0, fmt.Errorf("Failed to create a trainer (failed to begin transaction): %w\n", txErr)
+		return 0, fmt.Errorf("failed to create a trainer (failed to begin transaction): %w", txErr)
 	}
 
 	res, execErr := tx.Exec(query, data.Name, data.Job, data.Description, data.Instigram, data.Facebook, data.Twitter)
 	if execErr != nil {
 		rollErr := tx.Rollback()
 		if rollErr != nil {
-			return 0, fmt.Errorf("Failed to create a trainer: (Failed to rollback on transaction): %w\n", rollErr)
+			return 0, fmt.Errorf("failed to create a trainer: (Failed to rollback on transaction): %w", rollErr)
 		}
 
-		return 0, fmt.Errorf("Failed to create a trainer: %w\n", execErr)
+		return 0, fmt.Errorf("failed to create a trainer: %w", execErr)
 	}
 
 	id, idErr := res.LastInsertId()
 	if idErr != nil {
 		rollErr := tx.Rollback()
 		if rollErr != nil {
-			return 0, fmt.Errorf("Failed to create a trainer: (Failed to rollback on transaction): %w\n", rollErr)
+			return 0, fmt.Errorf("failed to create a trainer: (Failed to rollback on transaction): %w", rollErr)
 		}
 
-		return 0, fmt.Errorf("Failed to retrieve created trainer ID: %w\n", idErr)
+		return 0, fmt.Errorf("failed to retrieve created trainer ID: %w", idErr)
 	}
 	commitErr := tx.Commit()
 	if commitErr != nil {
 		rollErr := tx.Rollback()
 		if rollErr != nil {
-			return 0, fmt.Errorf("Failed to rollback on transaction at committing transaction: %w\n", rollErr)
+			return 0, fmt.Errorf("failed to rollback on transaction at committing transaction: %w", rollErr)
 		}
-		return 0, fmt.Errorf("Failed to create a trainer (failed to commit transaction): %w\n", commitErr)
+		return 0, fmt.Errorf("failed to create a trainer (failed to commit transaction): %w", commitErr)
 	}
 	return id, nil
 }
 
 func UpdateTrainer(db *sql.DB, data Trainer) error {
-	query := `UPDATE Trainer SET name = ?, job = ?, description = ?, instigram = ?, facebook = ?, twitter = ? WHERE id = ?`
+	query := `UPDATE Trainer SET name = ?, job = ?, description = ?, instagram = ?, facebook = ?, twitter = ? WHERE id = ?`
 
 	_, execErr := db.Exec(query, data.Name, data.Job, data.Description, data.Instigram, data.Facebook, data.Twitter, data.ID)
 	if execErr != nil {
-		return fmt.Errorf("Failed to update a trainer (id: %d): %w\n", data.ID, execErr)
+		return fmt.Errorf("failed to update a trainer (id: %d): %w", data.ID, execErr)
 	}
 
 	return nil
@@ -2001,7 +2001,7 @@ func DeleteTrainerByID(db *sql.DB, id int64) error {
 	query := `DELETE FROM Trainer WHERE id = ?`
 	_, execErr := db.Exec(query, id)
 	if execErr != nil {
-		return fmt.Errorf("Failed to delete a trainer by ID (id: %d): %w\n", id, execErr)
+		return fmt.Errorf("failed to delete a trainer by ID (id: %d): %w", id, execErr)
 	}
 
 	return nil

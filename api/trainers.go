@@ -13,7 +13,7 @@ import (
 func GetTrainers(ctx *gin.Context) {
 	trainers, queryErr := db.GetAllTrainers(db.DB)
 	if queryErr != nil {
-		common.Logger.Printf("Failed to get trainers: %v\n", queryErr)
+		common.Logger.Printf("failed to get trainers: %v", queryErr)
 		ctx.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
@@ -38,6 +38,7 @@ func CreateTrainer(ctx *gin.Context) {
 		Facebook:    data.Facebook,
 		Twitter:     data.Twitter,
 	})
+
 	if queryErr != nil {
 		common.Logger.Printf("Failed to create a trainer: %v\n", queryErr)
 		ctx.AbortWithStatus(http.StatusInternalServerError)
