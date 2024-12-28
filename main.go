@@ -7,8 +7,13 @@
 package main
 
 import (
+	"fmt"
+	"os"
+	"time"
+
 	"github.com/HenryMarkle/gmserver/api"
 	"github.com/HenryMarkle/gmserver/db"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -148,5 +153,25 @@ func main() {
 		}
 	}
 
-	server.Run()
+	certFile, certFileExists := os.LookupEnv("fullchain")
+	keyFile, keyFileExists := os.LookupEnv("privkey")
+
+	corsConfig := cors.Config{
+		AllowOrigins:  []string{"*"},                                       // Allowed origins
+		AllowMethods:  []string{"GET", "POST", "PATCH", "PUT", "DELETE"},   // Allowed methods
+		AllowHeaders:  []string{"Content-Type", "Authorization", "Cookie"}, // Allowed headers
+		ExposeHeaders: []string{"Content-Length"},                          // Headers exposed to the browser
+		MaxAge:        12 * time.Hour,                                      // Preflight request cache duration
+	}
+
+	server.Use(cors.New(corsConfig))
+
+	if !certFileExists || !keyFileExists {
+		server.Run()
+	} else {
+		tlsErr := server.RunTLS(":443", certFile, keyFile)
+		if tlsErr != nil {
+			fmt.Printf("failed to run HTTPS server: %v\n", tlsErr)
+		}
+	}
 }
