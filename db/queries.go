@@ -453,6 +453,54 @@ func UpdateSubscriber(db *sql.DB, data Subscriber) error {
 	return nil
 }
 
+func GetPlanFeatures(db *sql.DB, planID int64) ([]PlanFeature, error) {
+	query := `SELECT id, name FROM PlanFeature WHERE planId = ?`
+
+	rows, queryErr := db.Query(query, planID)
+	if queryErr != nil {
+		if queryErr == sql.ErrNoRows {
+			return []PlanFeature{}, nil
+		}
+
+		return nil, fmt.Errorf("failed to get features of a plan: %w", queryErr)
+	}
+
+	defer rows.Close()
+
+	features := []PlanFeature{}
+	counter := 0
+
+	for rows.Next() {
+		var feature = PlanFeature{PlanID: int(planID)}
+
+		scanErr := rows.Scan(&feature.ID, &feature.Name)
+		if scanErr != nil {
+			common.Logger.Printf("failed to scan a feature in row %d: %v", counter, scanErr)
+		} else {
+			features = append(features, feature)
+		}
+	}
+
+	return features, nil
+}
+
+func GetFeatureByID(db *sql.DB, id int64) (*PlanFeature, error) {
+	query := `SELECT name, planId FROM PlanFeature WHERE id =?`
+
+	var feature = PlanFeature{ID: int(id)}
+
+	scanErr := db.QueryRow(query, id).Scan(&feature.Name, &feature.PlanID)
+	if scanErr != nil {
+		if scanErr == sql.ErrNoRows {
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("failed to get a feature by ID: %w", scanErr)
+	}
+
+	return &feature, nil
+}
+
 func GetPlans(db *sql.DB) ([]Plan, error) {
 	query := `SELECT id, title, description, price, duration, createdAt, updatedAt, COALESCE(deletedAt, '') FROM Plan WHERE deletedAt IS NULL`
 
@@ -462,7 +510,7 @@ func GetPlans(db *sql.DB) ([]Plan, error) {
 			return []Plan{}, nil
 		}
 
-		return nil, fmt.Errorf("Failed to get all plans: %w\n", execErr)
+		return nil, fmt.Errorf("failed to get all plans: %w", execErr)
 	}
 
 	defer rows.Close()
@@ -473,15 +521,21 @@ func GetPlans(db *sql.DB) ([]Plan, error) {
 	for rows.Next() {
 		plan := Plan{}
 
-		scanErr := rows.Scan(&plan.ID, &plan.Title, &plan.Description, &plan.Duration, &plan.CreatedAt, &plan.UpdatedAt, &plan.DeletedAt)
+		scanErr := rows.Scan(&plan.ID, &plan.Title, &plan.Description, &plan.Price, &plan.Duration, &plan.CreatedAt, &plan.UpdatedAt, &plan.DeletedAt)
 
 		if scanErr != nil {
-			common.Logger.Printf("Failed to scal plans rows at row (%d): %v\n", counter, scanErr)
+			common.Logger.Printf("failed to scal plans rows at row (%d): %v", counter, scanErr)
 		} else {
-			plans = append(plans, plan)
+			features, featureErr := GetPlanFeatures(db, plan.ID)
+			if featureErr != nil {
+				common.Logger.Printf("failed to get features of a plan in row %d: %v", counter, featureErr)
+			} else {
+				plan.Features = features
+			}
 		}
 
 		plans = append(plans, plan)
+		counter++
 	}
 
 	return plans, nil
@@ -529,7 +583,7 @@ func GetPlanByID(db *sql.DB, id int64) (*Plan, error) {
 	scanErr := db.QueryRow(query, id).Scan(&plan.Title, &plan.Description, &plan.Price, &plan.Duration, &plan.CreatedAt, &plan.UpdatedAt, &plan.DeletedAt)
 
 	if scanErr != nil {
-		return nil, fmt.Errorf("Failed to get a plan by ID: %wn", scanErr)
+		return nil, fmt.Errorf("Failed to get a plan by ID: %w", scanErr)
 	}
 
 	return plan, nil
@@ -589,7 +643,7 @@ func ReplacePlan(db *sql.DB, plan Plan) error {
 
 	if commitErr != nil {
 		tx.Rollback()
-		return fmt.Errorf("Could not commit plan replacement: %w\n", commitErr)
+		return fmt.Errorf("could not commit plan replacement: %w", commitErr)
 	}
 
 	return nil
@@ -605,7 +659,7 @@ func GetProducts(db *sql.DB) ([]Product, error) {
 			return []Product{}, nil
 		}
 
-		return nil, fmt.Errorf("Failed to get all products: %w\n", queryErr)
+		return nil, fmt.Errorf("failed to get all products: %w", queryErr)
 	}
 
 	defer rows.Close()
@@ -673,10 +727,10 @@ func GetProductByID(db *sql.DB, id int64) (*Product, error) {
 
 	if scanErr != nil {
 		if scanErr == sql.ErrNoRows {
-			return nil, fmt.Errorf("Product with ID (%d) not found\n", id)
+			return nil, fmt.Errorf("product with ID (%d) not found", id)
 		}
 
-		return nil, fmt.Errorf("Failed to get a product by ID (%d): %w\n", id, scanErr)
+		return nil, fmt.Errorf("failed to get a product by ID (%d): %w", id, scanErr)
 	}
 
 	return product, nil

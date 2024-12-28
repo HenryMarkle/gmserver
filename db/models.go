@@ -150,13 +150,13 @@ type Excercise struct {
 }
 
 type Trainer struct {
-	Job         string
-	Name        string
-	Description string
-	Instigram   string
-	Facebook    string
-	Twitter     string
-	ID          int64
+	Job         string `json:"job"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Instigram   string `json:"instagram"`
+	Facebook    string `json:"facebook"`
+	Twitter     string `json:"twitter"`
+	ID          int64  `json:"id"`
 }
 
 type Plan struct {
@@ -166,6 +166,7 @@ type Plan struct {
 	CreatedAt   string
 	UpdatedAt   string
 	DeletedAt   string
+	Features    []PlanFeature
 	ID          int64
 	Price       float64
 }
