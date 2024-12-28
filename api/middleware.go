@@ -72,7 +72,7 @@ func AdminOnly() gin.HandlerFunc {
 
 func AllowAllOrigins() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		ctx.Header("Access-Control-Allow-Origin", "*")
+		ctx.Header("Access-Control-Allow-Origin", ctx.Request.Host)
 		ctx.Next()
 	}
 }
