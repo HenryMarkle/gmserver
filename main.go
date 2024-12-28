@@ -9,11 +9,9 @@ package main
 import (
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/HenryMarkle/gmserver/api"
 	"github.com/HenryMarkle/gmserver/db"
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -21,15 +19,15 @@ func main() {
 	defer db.DB.Close()
 	server := gin.Default()
 
-	corsConfig := cors.Config{
-		AllowOrigins:  []string{"*"},                                       // Allowed origins
-		AllowMethods:  []string{"GET", "POST", "PATCH", "PUT", "DELETE"},   // Allowed methods
-		AllowHeaders:  []string{"Content-Type", "Authorization", "Cookie"}, // Allowed headers
-		ExposeHeaders: []string{"Content-Length"},                          // Headers exposed to the browser
-		MaxAge:        12 * time.Hour,                                      // Preflight request cache duration
-	}
+	// corsConfig := cors.Config{
+	// 	AllowOrigins:  []string{"*"},                                       // Allowed origins
+	// 	AllowMethods:  []string{"GET", "POST", "PATCH", "PUT", "DELETE"},   // Allowed methods
+	// 	AllowHeaders:  []string{"Content-Type", "Authorization", "Cookie"}, // Allowed headers
+	// 	ExposeHeaders: []string{"Content-Length"},                          // Headers exposed to the browser
+	// 	MaxAge:        12 * time.Hour,                                      // Preflight request cache duration
+	// }
 
-	server.Use(cors.New(corsConfig))
+	server.Use(api.AllowAllOrigins())
 
 	server.GET("/", func(ctx *gin.Context) {
 		ctx.String(200, "Hello")

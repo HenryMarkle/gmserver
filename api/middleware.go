@@ -72,7 +72,11 @@ func AdminOnly() gin.HandlerFunc {
 
 func AllowAllOrigins() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		ctx.Header("Access-Control-Allow-Origin", ctx.Request.Header.Get("Origin"))
+		common.Logger.Printf("request from origin %s\n", ctx.Request.Header.Get("Origin"))
+
+		ctx.Header("Access-Control-Allow-Origin", "*")
+		ctx.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE")
+		ctx.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, Cookie")
 		ctx.Next()
 	}
 }
