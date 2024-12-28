@@ -165,6 +165,7 @@ func main() {
 	}
 
 	server.Use(cors.New(corsConfig))
+	server.Use(api.AllowAllOrigins())
 
 	if !certFileExists || !keyFileExists {
 		server.Run()
