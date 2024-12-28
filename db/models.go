@@ -31,6 +31,15 @@ type LandingPageData struct {
 	ID                    int
 }
 
+type LandingPageQNA struct {
+	ID int64 `json:"id"`
+
+	LandingPageID int64 `json:"landingPageId"`
+
+	Question string `json:"question"`
+	Answer   string `json:"answer"`
+}
+
 type LandingPageGeneralData struct {
 	Title                 string
 	StarterSentence       string

@@ -499,3 +499,51 @@ func UpdateContacts(ctx *gin.Context) {
 
 	ctx.Status(http.StatusOK)
 }
+
+func GetQNA(ctx *gin.Context) {
+	array, queryErr := db.GetQNA(db.DB)
+	if queryErr != nil {
+		common.Logger.Printf("failed to get QNA: %v", queryErr)
+		ctx.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, array)
+}
+
+func AddQNA(ctx *gin.Context) {
+	data := dto.CreateQNA_Req{}
+	bindErr := ctx.ShouldBindBodyWithJSON(&data)
+	if bindErr != nil {
+		ctx.String(http.StatusBadRequest, "Invalid data: %v", bindErr)
+		return
+	}
+
+	id, queryErr := db.AddQNA(db.DB, data.Question, data.Answer)
+	if queryErr != nil {
+		common.Logger.Printf("failed to add QNA: %v", queryErr)
+		ctx.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, id)
+}
+
+func DeleteQNA(ctx *gin.Context) {
+	idStr := ctx.Params.ByName("id")
+
+	id, convErr := strconv.ParseInt(idStr, 10, 64)
+	if convErr != nil {
+		ctx.String(http.StatusBadRequest, "Invalid parameter: id")
+		return
+	}
+
+	queryErr := db.DeleteQNAByID(db.DB, id)
+	if queryErr != nil {
+		common.Logger.Printf("failed to delete QNA: %v", queryErr)
+		ctx.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.Status(http.StatusOK)
+}

@@ -110,6 +110,7 @@ func main() {
 				_ = dash.GET("/products/category", api.GetProductsOfCategory)
 				_ = dash.GET("/products-exists-in-category", api.ProductExistsUnderCategory)
 				_ = dash.GET("/contacts", api.GetContacts)
+				_ = dash.GET("/qna", api.GetQNA)
 			}
 			{
 				dash := auth.Group("/dashboard")
@@ -127,6 +128,8 @@ func main() {
 				_ = dash.DELETE("/product-category/:id", api.DeleteProductCategoryByID)
 				_ = dash.DELETE("/products-of-category/:id", api.DeleteProductsOfCategory)
 				_ = dash.PATCH("/contacts", api.UpdateContacts)
+				_ = dash.POST("/qna", api.AddQNA)
+				_ = dash.DELETE("/qna/:id", api.DeleteQNA)
 			}
 			{
 				basket := auth.Group("/basket")

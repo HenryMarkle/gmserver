@@ -2178,3 +2178,59 @@ func DeleteTrainerByID(db *sql.DB, id int64) error {
 
 	return nil
 }
+
+func GetQNA(db *sql.DB) ([]LandingPageQNA, error) {
+	query := `SELECT * FROM QNA`
+
+	rows, queryErr := db.Query(query)
+	if queryErr != nil {
+		if queryErr == sql.ErrNoRows {
+			return []LandingPageQNA{}, nil
+		}
+
+		return nil, fmt.Errorf("failed to query QNA: %w", queryErr)
+	}
+
+	defer rows.Close()
+
+	qnas := []LandingPageQNA{}
+	counter := 0
+
+	for rows.Next() {
+		qna := LandingPageQNA{}
+
+		scanErr := rows.Scan(&qna.ID, &qna.LandingPageID, &qna.Question, &qna.Answer)
+		if scanErr != nil {
+			common.Logger.Printf("failed to scan a QNA from row %d: %v", counter, scanErr)
+		} else {
+			qnas = append(qnas, qna)
+		}
+
+		counter++
+	}
+
+	return qnas, nil
+}
+
+func AddQNA(db *sql.DB, question, answer string) (int64, error) {
+	query := `INSERT INTO QNA (landingPageId, question, answer) VALUES (1, ?, ?)`
+
+	res, execErr := db.Exec(query, question, answer)
+	if execErr != nil {
+		return 0, fmt.Errorf("failed to add QNA: %w", execErr)
+	}
+
+	insertedID, _ := res.LastInsertId()
+	return insertedID, nil
+}
+
+func DeleteQNAByID(db *sql.DB, id int64) error {
+	query := `DELETE FROM QNA WHERE id = ?`
+
+	_, execErr := db.Exec(query, id)
+	if execErr != nil {
+		return fmt.Errorf("failed to delete a QNA by ID: %w", execErr)
+	}
+
+	return nil
+}
