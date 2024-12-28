@@ -30,7 +30,6 @@ func main() {
 	}
 
 	server.Use(cors.New(corsConfig))
-	server.Use(api.AllowAllOrigins())
 
 	server.GET("/", func(ctx *gin.Context) {
 		ctx.String(200, "Hello")
