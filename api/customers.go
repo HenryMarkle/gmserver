@@ -33,13 +33,7 @@ func CountCustomers(ctx *gin.Context) {
 }
 
 func CountCustomersEndingIn(ctx *gin.Context) {
-	var time string
-
-	bindErr := ctx.ShouldBindJSON(&time)
-	if bindErr != nil {
-		ctx.String(http.StatusBadRequest, "Invalid data: %v", bindErr)
-		return
-	}
+	var time = ctx.Query("date")
 
 	count, queryErr := db.GetAllSubscribersEndingBefore(db.DB, time)
 	if queryErr != nil {
