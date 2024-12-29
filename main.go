@@ -34,6 +34,7 @@ func main() {
 			auth.POST("/signout", api.Signout)
 			auth.PATCH("/changepassword", api.ChangePassword)
 			auth.GET("/", api.GetUserBySession)
+			auth.GET("/count-users", api.CountUsers)
 
 			{
 				comments := auth.Group("/comments")
