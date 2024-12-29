@@ -61,20 +61,20 @@ type Contacts struct {
 }
 
 type Subscriber struct {
-	StartedAt     string
-	Name          string
-	Surname       string
-	DeletedAt     string
-	UpdatedAt     string
-	CreatedAt     string
-	EndsAt        string
-	Gender        string
-	Age           int
-	PaymentAmount float64
-	BucketPrice   float64
-	DaysLeft      int
-	Duration      int
-	ID            int
+	StartedAt     string  `json:"startedAt"`
+	Name          string  `json:"name"`
+	Surname       string  `json:"surname"`
+	DeletedAt     string  `json:"deletedAt"`
+	UpdatedAt     string  `json:"updatedAt"`
+	CreatedAt     string  `json:"createdAt"`
+	EndsAt        string  `json:"endsAt"`
+	Gender        string  `json:"gender"`
+	Age           int     `json:"age"`
+	PaymentAmount float64 `json:"paymentAmount"`
+	BucketPrice   float64 `json:"bucketPrice"`
+	DaysLeft      int     `json:"daysLeft"`
+	Duration      int     `json:"duration"`
+	ID            int     `json:"id"`
 }
 
 type SubscriberComment struct {
