@@ -64,16 +64,16 @@ type Subscriber struct {
 	StartedAt     string  `json:"startedAt"`
 	Name          string  `json:"name"`
 	Surname       string  `json:"surname"`
-	DeletedAt     string  `json:"deletedAt"`
-	UpdatedAt     string  `json:"updatedAt"`
-	CreatedAt     string  `json:"createdAt"`
+	DeletedAt     string  `json:"deletedAt" binding:"omitempty"`
+	UpdatedAt     string  `json:"updatedAt" binding:"omitempty"`
+	CreatedAt     string  `json:"createdAt" binding:"omitempty"`
 	EndsAt        string  `json:"endsAt"`
 	Gender        string  `json:"gender"`
 	Age           int     `json:"age"`
 	PaymentAmount float64 `json:"paymentAmount"`
 	BucketPrice   float64 `json:"bucketPrice"`
-	DaysLeft      int     `json:"daysLeft"`
-	Duration      int     `json:"duration"`
+	DaysLeft      int     `json:"daysLeft" binding:"omitempty"`
+	Duration      int     `json:"duration" binding:"omitempty"`
 	ID            int     `json:"id"`
 }
 
