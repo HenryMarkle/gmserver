@@ -2288,3 +2288,179 @@ func DeleteQNAByID(db *sql.DB, id int64) error {
 
 	return nil
 }
+
+func CreateAdvice(db *sql.DB, title, description string) (int64, error) {
+	query := `INSERT INTO Advice (title, description) VALUES (?, ?)`
+
+	res, execErr := db.Exec(query, title, description)
+	if execErr != nil {
+		return 0, execErr
+	}
+
+	id, _ := res.LastInsertId()
+
+	return id, nil
+}
+
+func GetAdviceByID(db *sql.DB, id int64) (*Advice, error) {
+	query := `SELECT title, description FROM Advice WHERE id = ?`
+
+	advice := &Advice{ID: id}
+
+	scanErr := db.QueryRow(query, id).Scan(&advice.Title, &advice.Description)
+	if scanErr != nil {
+		if scanErr == sql.ErrNoRows {
+			return nil, nil
+		}
+
+		return nil, scanErr
+	}
+
+	return advice, nil
+}
+
+func GetAllAdvice(db *sql.DB) ([]Advice, error) {
+	query := `SELECT id, title, description FROM Advice`
+
+	rows, queryErr := db.Query(query)
+	if queryErr != nil {
+		if queryErr == sql.ErrNoRows {
+			return []Advice{}, nil
+		}
+
+		return nil, queryErr
+	}
+
+	defer rows.Close()
+
+	advices := []Advice{}
+	counter := 0
+
+	for rows.Next() {
+		advice := Advice{}
+
+		scanErr := rows.Scan(&advice.ID, &advice.Title, &advice.Description)
+		if scanErr != nil {
+			common.Logger.Printf("failed to scan advice at row %d: %v", counter, scanErr)
+		} else {
+			advices = append(advices, advice)
+		}
+
+		counter++
+	}
+
+	return advices, nil
+}
+
+func UpdateAdviceByID(db *sql.DB, data Advice) error {
+	query := `UPDATE Advice SET title = ?, description = ? WHERE id = ?`
+
+	_, execErr := db.Exec(query, data.Title, data.Description, data.ID)
+	if execErr != nil {
+		return execErr
+	}
+
+	return nil
+}
+
+func DeleteAdviceByID(db *sql.DB, id int64) error {
+	query := `DELETE FROM Advice WHERE id = ?`
+
+	_, execErr := db.Exec(query, id)
+	if execErr != nil {
+		return execErr
+	}
+
+	return nil
+}
+
+func CreateBlog(db *sql.DB, data Blog) (int64, error) {
+	query := `INSERT INTO Blog 
+		(title, subtitle, description, image, views) VALUES 
+		(?, ?, ?, ?, ?)`
+
+	res, execErrr := db.Exec(query, data.Title, data.Subtitle, data.Description, data.Image, data.Views)
+	if execErrr != nil {
+		return 0, execErrr
+	}
+
+	id, _ := res.LastInsertId()
+	return id, nil
+}
+
+func UpdateBlogByID(db *sql.DB, data Blog) error {
+	query := `UPDATE Blog SET 
+		title = ?, 
+		subtitle = ?,
+		description = ?,
+		image = ?,
+		views = ?
+		
+		WHERE id = ?`
+
+	_, execErr := db.Exec(query, data.Title, data.Subtitle, data.Description, data.Image, data.Views, data.ID)
+	if execErr != nil {
+		return execErr
+	}
+
+	return nil
+}
+
+func GetBlogByID(db *sql.DB, id int64) (*Blog, error) {
+	query := `SELECT * FROM Blog WHERE id = ?`
+
+	blog := &Blog{}
+	scanErr := db.QueryRow(query, id).Scan(&blog.ID, &blog.Title, &blog.Subtitle, &blog.Description, &blog.Image, &blog.Views)
+	if scanErr != nil {
+		if scanErr == sql.ErrNoRows {
+			return nil, nil
+		}
+
+		return nil, scanErr
+	}
+	return blog, nil
+}
+
+func GetAllBlogs(db *sql.DB) ([]Blog, error) {
+	query := `SELECT * FROM Blog`
+
+	rows, queryErr := db.Query(query)
+	if queryErr != nil {
+		if queryErr == sql.ErrNoRows {
+			return []Blog{}, nil
+		}
+
+		return nil, queryErr
+	}
+
+	defer rows.Close()
+
+	blogs := []Blog{}
+	counter := 0
+
+	for rows.Next() {
+		blog := Blog{}
+
+		scanErr := rows.Scan(&blog.ID, &blog.Title, &blog.Subtitle, &blog.Description, &blog.Image, &blog.Views)
+		if scanErr != nil {
+			common.Logger.Printf("failed to scan a blog at row %d: %v", counter, scanErr)
+		} else {
+			blogs = append(blogs, blog)
+		}
+
+		counter++
+	}
+
+	return blogs, nil
+}
+
+func DeleteBlogByID(db *sql.DB, id int64) error {
+	query := `DELETE FROM Blog WHERE id = ?`
+
+	_, execErr := db.Exec(query, id)
+	if execErr != nil {
+		return execErr
+	}
+
+	return nil
+}

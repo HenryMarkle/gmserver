@@ -147,6 +147,32 @@ func main() {
 				_ = basket.DELETE("/", api.DeleteBasket)
 			}
 			{
+				advice := v1.GET("/advice")
+
+				_ = advice.GET("/", api.GetAllAdvice)
+				_ = advice.GET("/:id", api.GetAdviceByID)
+			}
+			{
+				advice := auth.Group("/advice")
+
+				_ = advice.POST("/", api.CreateAdvice)
+				_ = advice.PATCH("/", api.UpdateAdviceByID)
+				_ = advice.DELETE("/:id", api.DeleteAdviceByID)
+			}
+			{
+				blog := v1.Group("/blog")
+
+				_ = blog.GET("/", api.GetAllBlogs)
+				_ = blog.GET("/:id", api.GetBlogByID)
+			}
+			{
+				blog := auth.Group("/blog")
+
+				_ = blog.POST("/", api.CreateBlog)
+				_ = blog.PATCH("/:id", api.UpdateBlogByID)
+				_ = blog.DELETE("/:id", api.DeleteBlogByID)
+			}
+			{
 				admin := auth.Group("/admin")
 				admin.Use(api.AdminOnly())
 			}
