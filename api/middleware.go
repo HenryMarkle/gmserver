@@ -87,3 +87,27 @@ func AllowAllOrigins() gin.HandlerFunc {
 		ctx.Next()
 	}
 }
+
+func DynamicCORS() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		origin := ctx.Request.Header.Get("Origin")
+		common.Logger.Printf("request from origin %s\n", origin)
+
+		if origin != "" {
+			ctx.Header("Access-Control-Allow-Origin", origin)
+			ctx.Header("Access-Control-Allow-Credentials", "true")
+
+		} else {
+			ctx.Header("Access-Control-Allow-Origin", "*")
+		}
+		ctx.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS")
+		ctx.Header("Access-Control-Allow-Headers", "Content-Type, Accept, Accept-Encoding, Connection, Content-Length, Authorization, Cookie")
+
+		if ctx.Request.Method == http.MethodOptions {
+			ctx.AbortWithStatus(http.StatusOK)
+			return
+		}
+
+		ctx.Next()
+	}
+}

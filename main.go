@@ -18,7 +18,7 @@ import (
 func main() {
 	defer db.DB.Close()
 	server := gin.Default()
-	server.Use(api.AllowAllOrigins())
+	server.Use(api.DynamicCORS())
 
 	server.GET("/", func(ctx *gin.Context) {
 		ctx.String(200, "Hello")
