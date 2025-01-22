@@ -10,6 +10,7 @@ import (
 
 	"github.com/HenryMarkle/gmserver/common"
 	"github.com/HenryMarkle/gmserver/db"
+	"github.com/HenryMarkle/gmserver/dto"
 	"github.com/gin-gonic/gin"
 )
 
@@ -28,7 +29,13 @@ func GetBlogByID(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, blog)
+	ctx.JSON(http.StatusOK, &dto.GetBlog_Res{
+		ID:          blog.ID,
+		Title:       blog.Title,
+		Subtitle:    blog.Subtitle,
+		Description: blog.Description,
+		Views:       blog.Views,
+	})
 }
 
 func GetAllBlogs(ctx *gin.Context) {
@@ -39,7 +46,19 @@ func GetAllBlogs(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, blogs)
+	dtoBlogs := make([]dto.GetBlog_Res, 0, len(blogs))
+
+	for _, i := range blogs {
+		dtoBlogs = append(dtoBlogs, dto.GetBlog_Res{
+			ID:          i.ID,
+			Title:       i.Title,
+			Subtitle:    i.Subtitle,
+			Description: i.Description,
+			Views:       i.Views,
+		})
+	}
+
+	ctx.JSON(http.StatusOK, dtoBlogs)
 }
 
 func UpdateBlogByID(ctx *gin.Context) {
@@ -61,26 +80,24 @@ func UpdateBlogByID(ctx *gin.Context) {
 	}
 
 	image, formErr := ctx.FormFile("image")
-	if formErr != nil {
-		ctx.String(http.StatusBadRequest, "Invalid form data: %v", formErr)
-		return
-	}
+	var imageBytes []byte
+	if formErr == nil {
+		imageContent, imageErr := image.Open()
+		if imageErr != nil {
+			common.Logger.Printf("failed to open recieved image content: %v", imageErr)
+			ctx.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+		defer imageContent.Close()
 
-	imageContent, imageErr := image.Open()
-	if imageErr != nil {
-		common.Logger.Printf("failed to open recieved image content: %v", imageErr)
-		ctx.AbortWithStatus(http.StatusInternalServerError)
-		return
+		var buf bytes.Buffer
+		if _, readErr := io.Copy(&buf, imageContent); readErr != nil {
+			common.Logger.Printf("failed to read recieved image content: %v", readErr)
+			ctx.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+		imageBytes = buf.Bytes()
 	}
-	defer imageContent.Close()
-
-	var buf bytes.Buffer
-	if _, readErr := io.Copy(&buf, imageContent); readErr != nil {
-		common.Logger.Printf("failed to read recieved image content: %v", readErr)
-		ctx.AbortWithStatus(http.StatusInternalServerError)
-		return
-	}
-	imageBytes := buf.Bytes()
 
 	queryErr := db.UpdateBlogByID(db.DB, db.Blog{
 		ID:          id,
@@ -114,26 +131,25 @@ func CreateBlog(ctx *gin.Context) {
 	}
 
 	image, formErr := ctx.FormFile("image")
-	if formErr != nil {
-		ctx.String(http.StatusBadRequest, "Invalid form data: %v", formErr)
-		return
-	}
+	var imageBytes []byte
+	if formErr == nil {
 
-	imageContent, imageErr := image.Open()
-	if imageErr != nil {
-		common.Logger.Printf("failed to open recieved image content: %v", imageErr)
-		ctx.AbortWithStatus(http.StatusInternalServerError)
-		return
-	}
-	defer imageContent.Close()
+		imageContent, imageErr := image.Open()
+		if imageErr != nil {
+			common.Logger.Printf("failed to open recieved image content: %v", imageErr)
+			ctx.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+		defer imageContent.Close()
 
-	var buf bytes.Buffer
-	if _, readErr := io.Copy(&buf, imageContent); readErr != nil {
-		common.Logger.Printf("failed to read recieved image content: %v", readErr)
-		ctx.AbortWithStatus(http.StatusInternalServerError)
-		return
+		var buf bytes.Buffer
+		if _, readErr := io.Copy(&buf, imageContent); readErr != nil {
+			common.Logger.Printf("failed to read recieved image content: %v", readErr)
+			ctx.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+		imageBytes = buf.Bytes()
 	}
-	imageBytes := buf.Bytes()
 
 	id, queryErr := db.CreateBlog(db.DB, db.Blog{
 		Title:       title,
