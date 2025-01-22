@@ -2,8 +2,10 @@ package api
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net/http"
+	"path/filepath"
 	"strconv"
 
 	"github.com/HenryMarkle/gmserver/common"
@@ -87,6 +89,7 @@ func UpdateBlogByID(ctx *gin.Context) {
 		Description: description,
 		Image:       imageBytes,
 		Views:       int(views),
+		ImageType:   filepath.Ext(image.Filename)[1:],
 	})
 
 	if queryErr != nil {
@@ -138,6 +141,7 @@ func CreateBlog(ctx *gin.Context) {
 		Description: description,
 		Image:       imageBytes,
 		Views:       int(views),
+		ImageType:   fmt.Sprintf("image/%s", filepath.Ext(image.Filename)[1:]),
 	})
 
 	if queryErr != nil {
@@ -165,4 +169,24 @@ func DeleteBlogByID(ctx *gin.Context) {
 	}
 
 	ctx.Status(http.StatusOK)
+}
+
+func GetBlogImageByID(ctx *gin.Context) {
+	idStr := ctx.Params.ByName("id")
+
+	id, convErr := strconv.ParseInt(idStr, 10, 64)
+	if convErr != nil {
+		ctx.String(http.StatusBadRequest, "Invalid parameter: 'id': %v", convErr)
+	}
+
+	blog, queryErr := db.GetBlogByID(db.DB, id)
+	if queryErr != nil {
+		common.Logger.Printf("failed to get a blog by ID: %v", queryErr)
+		ctx.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	fmt.Printf("TYPE: %s", blog.ImageType)
+
+	ctx.Data(http.StatusOK, blog.ImageType, blog.Image)
 }

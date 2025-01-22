@@ -209,4 +209,5 @@ type Blog struct {
 	Description string `json:"description"`
 	Image       []byte `json:"image"`
 	Views       int    `json:"views"`
+	ImageType   string `json:"imageType"`
 }

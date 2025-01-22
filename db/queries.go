@@ -2376,10 +2376,10 @@ func DeleteAdviceByID(db *sql.DB, id int64) error {
 
 func CreateBlog(db *sql.DB, data Blog) (int64, error) {
 	query := `INSERT INTO Blog 
-		(title, subtitle, description, image, views) VALUES 
-		(?, ?, ?, ?, ?)`
+		(title, subtitle, description, image, views, image_type) VALUES 
+		(?, ?, ?, ?, ?, ?)`
 
-	res, execErrr := db.Exec(query, data.Title, data.Subtitle, data.Description, data.Image, data.Views)
+	res, execErrr := db.Exec(query, data.Title, data.Subtitle, data.Description, data.Image, data.Views, data.ImageType)
 	if execErrr != nil {
 		return 0, execErrr
 	}
@@ -2394,11 +2394,12 @@ func UpdateBlogByID(db *sql.DB, data Blog) error {
 		subtitle = ?,
 		description = ?,
 		image = ?,
-		views = ?
+		views = ?,
+		image_type = ?
 		
 		WHERE id = ?`
 
-	_, execErr := db.Exec(query, data.Title, data.Subtitle, data.Description, data.Image, data.Views, data.ID)
+	_, execErr := db.Exec(query, data.Title, data.Subtitle, data.Description, data.Image, data.Views, data.ImageType, data.ID)
 	if execErr != nil {
 		return execErr
 	}
@@ -2407,10 +2408,10 @@ func UpdateBlogByID(db *sql.DB, data Blog) error {
 }
 
 func GetBlogByID(db *sql.DB, id int64) (*Blog, error) {
-	query := `SELECT * FROM Blog WHERE id = ?`
+	query := `SELECT id, title, subtitle, description, image, views, image_type FROM Blog WHERE id = ?`
 
 	blog := &Blog{}
-	scanErr := db.QueryRow(query, id).Scan(&blog.ID, &blog.Title, &blog.Subtitle, &blog.Description, &blog.Image, &blog.Views)
+	scanErr := db.QueryRow(query, id).Scan(&blog.ID, &blog.Title, &blog.Subtitle, &blog.Description, &blog.Image, &blog.Views, &blog.ImageType)
 	if scanErr != nil {
 		if scanErr == sql.ErrNoRows {
 			return nil, nil
@@ -2441,7 +2442,7 @@ func GetAllBlogs(db *sql.DB) ([]Blog, error) {
 	for rows.Next() {
 		blog := Blog{}
 
-		scanErr := rows.Scan(&blog.ID, &blog.Title, &blog.Subtitle, &blog.Description, &blog.Image, &blog.Views)
+		scanErr := rows.Scan(&blog.ID, &blog.Title, &blog.Subtitle, &blog.Description, &blog.Image, &blog.Views, &blog.ImageType)
 		if scanErr != nil {
 			common.Logger.Printf("failed to scan a blog at row %d: %v", counter, scanErr)
 		} else {

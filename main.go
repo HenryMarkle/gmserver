@@ -164,6 +164,7 @@ func main() {
 
 				_ = blog.GET("/", api.GetAllBlogs)
 				_ = blog.GET("/:id", api.GetBlogByID)
+				_ = blog.GET("/image/:id", api.GetBlogImageByID)
 			}
 			{
 				blog := auth.Group("/blog")
