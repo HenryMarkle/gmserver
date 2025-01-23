@@ -18,7 +18,10 @@ import (
 func main() {
 	defer db.DB.Close()
 	server := gin.Default()
-	server.Use(api.DynamicCORS())
+
+	server.Use(api.CORS())
+
+	server.RedirectTrailingSlash = false
 
 	server.GET("/", func(ctx *gin.Context) {
 		ctx.String(200, "Hello")
@@ -33,7 +36,7 @@ func main() {
 			// auth.Use(api.Auth())
 			auth.POST("/signout", api.Signout)
 			auth.PATCH("/changepassword", api.ChangePassword)
-			auth.GET("/", api.GetUserBySession)
+			auth.GET("", api.GetUserBySession)
 			auth.GET("/count-users", api.CountUsers)
 
 			{
@@ -139,7 +142,7 @@ func main() {
 			{
 				basket := auth.Group("/basket")
 
-				_ = basket.GET("/", api.GetUserBasket)
+				_ = basket.GET("", api.GetUserBasket)
 				_ = basket.GET("/:basketId", api.GetUserBasketByID)
 				_ = basket.POST("/", api.AddToUserBasket)
 				_ = basket.PATCH("/increment", api.IncrementBasketQuantity)
@@ -149,29 +152,31 @@ func main() {
 			{
 				advice := v1.GET("/advice")
 
-				_ = advice.GET("/", api.GetAllAdvice)
+				_ = advice.GET("", api.GetAllAdvice)
 				_ = advice.GET("/:id", api.GetAdviceByID)
 			}
 			{
 				advice := auth.Group("/advice")
 
-				_ = advice.POST("/", api.CreateAdvice)
-				_ = advice.PATCH("/", api.UpdateAdviceByID)
+				_ = advice.POST("", api.CreateAdvice)
+				_ = advice.PATCH("", api.UpdateAdviceByID)
 				_ = advice.DELETE("/:id", api.DeleteAdviceByID)
 			}
 			{
 				blog := v1.Group("/blog")
 
-				_ = blog.GET("/", api.GetAllBlogs)
+				_ = blog.GET("", api.GetAllBlogs)
 				_ = blog.GET("/:id", api.GetBlogByID)
 				_ = blog.GET("/image/:id", api.GetBlogImageByID)
 			}
 			{
 				blog := auth.Group("/blog")
 
-				_ = blog.POST("/", api.CreateBlog)
+				_ = blog.POST("", api.CreateBlog)
 				_ = blog.PATCH("/:id", api.UpdateBlogByID)
 				_ = blog.DELETE("/:id", api.DeleteBlogByID)
+
+				_ = blog.POST("/image/:id", api.UploadBlogImage)
 			}
 			{
 				admin := auth.Group("/admin")

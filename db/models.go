@@ -207,7 +207,5 @@ type Blog struct {
 	Title       string `json:"title"`
 	Subtitle    string `json:"subtitle"`
 	Description string `json:"description"`
-	Image       []byte `json:"image"`
 	Views       int    `json:"views"`
-	ImageType   string `json:"imageType"`
 }

@@ -1,18 +1,63 @@
 package api
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/HenryMarkle/gmserver/common"
 	"github.com/HenryMarkle/gmserver/db"
 	"github.com/HenryMarkle/gmserver/dto"
 	"github.com/gin-gonic/gin"
 )
+
+func findBlogImage(id int64) (string, bool, error) {
+	entries, lookErr := os.ReadDir(filepath.Join(common.StoragePath, "blogs"))
+
+	if lookErr != nil {
+		return "", false, lookErr
+	}
+
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+
+		name := e.Name()
+
+		if strings.HasPrefix(name, fmt.Sprintf("%d", id)) {
+			return filepath.Join(common.StoragePath, "blogs", name), true, nil
+		}
+	}
+
+	return "", false, nil
+}
+
+func deleteBlogImage(id int64) error {
+	entries, lookErr := os.ReadDir(filepath.Join(common.StoragePath, "blogs"))
+
+	if lookErr != nil {
+		return lookErr
+	}
+
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+
+		name := e.Name()
+
+		if strings.HasPrefix(name, fmt.Sprintf("%d", id)) {
+			os.Remove(filepath.Join(common.StoragePath, "blogs", name))
+			return nil
+		}
+	}
+
+	return nil
+}
 
 func GetBlogByID(ctx *gin.Context) {
 	idStr := ctx.Params.ByName("id")
@@ -62,51 +107,20 @@ func GetAllBlogs(ctx *gin.Context) {
 }
 
 func UpdateBlogByID(ctx *gin.Context) {
-	idStr := ctx.Params.ByName("id")
 
-	id, convErr := strconv.ParseInt(idStr, 10, 64)
-	if convErr != nil {
-		ctx.String(http.StatusBadRequest, "Invalid parameter: 'id': %v", convErr)
-	}
-
-	title := ctx.PostForm("title")
-	subtitle := ctx.PostForm("subtitle")
-	description := ctx.PostForm("description")
-	viewsStr := ctx.PostForm("views")
-
-	views, viewsConvErr := strconv.ParseInt(viewsStr, 10, 32)
-	if viewsConvErr != nil {
-		ctx.String(http.StatusBadRequest, "Invalid form field: 'views': not a number", viewsConvErr)
-	}
-
-	image, formErr := ctx.FormFile("image")
-	var imageBytes []byte
-	if formErr == nil {
-		imageContent, imageErr := image.Open()
-		if imageErr != nil {
-			common.Logger.Printf("failed to open recieved image content: %v", imageErr)
-			ctx.AbortWithStatus(http.StatusInternalServerError)
-			return
-		}
-		defer imageContent.Close()
-
-		var buf bytes.Buffer
-		if _, readErr := io.Copy(&buf, imageContent); readErr != nil {
-			common.Logger.Printf("failed to read recieved image content: %v", readErr)
-			ctx.AbortWithStatus(http.StatusInternalServerError)
-			return
-		}
-		imageBytes = buf.Bytes()
+	data := dto.UpdateBlog_Req{}
+	bindErr := ctx.ShouldBindBodyWithJSON(&data)
+	if bindErr != nil {
+		ctx.String(http.StatusBadRequest, "Invalid data: %v", bindErr)
+		return
 	}
 
 	queryErr := db.UpdateBlogByID(db.DB, db.Blog{
-		ID:          id,
-		Title:       title,
-		Subtitle:    subtitle,
-		Description: description,
-		Image:       imageBytes,
-		Views:       int(views),
-		ImageType:   filepath.Ext(image.Filename)[1:],
+		ID:          data.ID,
+		Title:       data.Title,
+		Subtitle:    data.Subtitle,
+		Description: data.Description,
+		Views:       data.Views,
 	})
 
 	if queryErr != nil {
@@ -120,44 +134,18 @@ func UpdateBlogByID(ctx *gin.Context) {
 
 func CreateBlog(ctx *gin.Context) {
 
-	title := ctx.PostForm("title")
-	subtitle := ctx.PostForm("subtitle")
-	description := ctx.PostForm("description")
-	viewsStr := ctx.PostForm("views")
-
-	views, viewsConvErr := strconv.ParseInt(viewsStr, 10, 32)
-	if viewsConvErr != nil {
-		ctx.String(http.StatusBadRequest, "Invalid form field: 'views': not a number", viewsConvErr)
-	}
-
-	image, formErr := ctx.FormFile("image")
-	var imageBytes []byte
-	if formErr == nil {
-
-		imageContent, imageErr := image.Open()
-		if imageErr != nil {
-			common.Logger.Printf("failed to open recieved image content: %v", imageErr)
-			ctx.AbortWithStatus(http.StatusInternalServerError)
-			return
-		}
-		defer imageContent.Close()
-
-		var buf bytes.Buffer
-		if _, readErr := io.Copy(&buf, imageContent); readErr != nil {
-			common.Logger.Printf("failed to read recieved image content: %v", readErr)
-			ctx.AbortWithStatus(http.StatusInternalServerError)
-			return
-		}
-		imageBytes = buf.Bytes()
+	data := dto.CreateBlog_Req{}
+	bindErr := ctx.ShouldBindBodyWithJSON(&data)
+	if bindErr != nil {
+		ctx.String(http.StatusBadRequest, "Invalid data: %v", bindErr)
+		return
 	}
 
 	id, queryErr := db.CreateBlog(db.DB, db.Blog{
-		Title:       title,
-		Subtitle:    subtitle,
-		Description: description,
-		Image:       imageBytes,
-		Views:       int(views),
-		ImageType:   fmt.Sprintf("image/%s", filepath.Ext(image.Filename)[1:]),
+		Title:       data.Title,
+		Subtitle:    data.Subtitle,
+		Description: data.Description,
+		Views:       data.Views,
 	})
 
 	if queryErr != nil {
@@ -167,6 +155,50 @@ func CreateBlog(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, id)
+}
+
+func UploadBlogImage(ctx *gin.Context) {
+	idStr := ctx.Params.ByName("id")
+
+	id, convErr := strconv.ParseInt(idStr, 10, 64)
+	if convErr != nil {
+		ctx.String(http.StatusBadRequest, "Invalid parameter: 'id': %v", convErr)
+	}
+
+	image, formErr := ctx.FormFile("image")
+	var imageExt string
+	if formErr != nil {
+		ctx.String(http.StatusBadRequest, "Required file: 'image'.")
+		return
+	}
+
+	if image.Size > 10<<20 {
+		ctx.AbortWithStatusJSON(http.StatusForbidden, "Image size is too large (max is 10 MB).")
+		return
+	}
+
+	imageExt = filepath.Ext(image.Filename)
+
+	if imageExt != ".png" && imageExt != ".jpg" && imageExt != ".jpeg" {
+		ctx.AbortWithStatusJSON(http.StatusForbidden, "Only files with extensions '.png', '.jpg' and '.jpeg' are allowed.")
+		return
+	}
+
+	deleteErr := deleteBlogImage(id)
+	if deleteErr != nil {
+		common.Logger.Printf("failed to delete previous blog image (id: %d): %v", id, deleteErr)
+	}
+
+	imagePath := filepath.Join(common.StoragePath, "blogs", fmt.Sprintf("%d%s", id, imageExt))
+
+	uploadErr := ctx.SaveUploadedFile(image, imagePath)
+	if uploadErr != nil {
+		common.Logger.Printf("failed to upload blog image (id: %d): %v", id, uploadErr)
+		ctx.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.Status(http.StatusOK)
 }
 
 func DeleteBlogByID(ctx *gin.Context) {
@@ -184,6 +216,11 @@ func DeleteBlogByID(ctx *gin.Context) {
 		return
 	}
 
+	deleteErr := deleteBlogImage(id)
+	if deleteErr != nil {
+		common.Logger.Printf("failed to delete previous blog image (id: %d): %v", id, deleteErr)
+	}
+
 	ctx.Status(http.StatusOK)
 }
 
@@ -195,14 +232,25 @@ func GetBlogImageByID(ctx *gin.Context) {
 		ctx.String(http.StatusBadRequest, "Invalid parameter: 'id': %v", convErr)
 	}
 
-	blog, queryErr := db.GetBlogByID(db.DB, id)
-	if queryErr != nil {
-		common.Logger.Printf("failed to get a blog by ID: %v", queryErr)
+	path, found, lookErr := findBlogImage(id)
+
+	if lookErr != nil {
+		common.Logger.Printf("failed to find blog image (id: %d): %v", id, lookErr)
 		ctx.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
 
-	fmt.Printf("TYPE: %s", blog.ImageType)
+	if !found {
+		ctx.AbortWithStatus(http.StatusNotFound)
+		return
+	}
 
-	ctx.Data(http.StatusOK, blog.ImageType, blog.Image)
+	bytes, err := os.ReadFile(path)
+	if err != nil {
+		common.Logger.Printf("failed to read blog image file (id: %d): %v", id, err)
+		ctx.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	ctx.Data(http.StatusOK, fmt.Sprintf("image/%s", filepath.Ext(path)[1:]), bytes)
 }
